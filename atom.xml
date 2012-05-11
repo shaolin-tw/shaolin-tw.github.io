@@ -4,7 +4,7 @@
   <title><![CDATA[Octopress Demo]]></title>
   <link href="http://shaolin-tw.github.com/atom.xml" rel="self"/>
   <link href="http://shaolin-tw.github.com/"/>
-  <updated>2012-05-12T03:25:08+08:00</updated>
+  <updated>2012-05-12T03:29:33+08:00</updated>
   <id>http://shaolin-tw.github.com/</id>
   <author>
     <name><![CDATA[shaolin]]></name>
@@ -12,15 +12,6 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
-  
-  <entry>
-    <title type="html"><![CDATA[test]]></title>
-    <link href="http://shaolin-tw.github.com/blog/2012/05/12/test/"/>
-    <updated>2012-05-12T03:24:00+08:00</updated>
-    <id>http://shaolin-tw.github.com/blog/2012/05/12/test</id>
-    <content type="html"><![CDATA[
-]]></content>
-  </entry>
   
   <entry>
     <title type="html"><![CDATA[First-post]]></title>
