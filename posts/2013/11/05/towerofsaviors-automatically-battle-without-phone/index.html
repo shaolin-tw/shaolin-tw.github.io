@@ -1,0 +1,323 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>神魔之塔脫機自動戰鬥 - Shaolin.TW</title>
+  <meta name="author" content="shaolin">
+
+  
+  <meta name="description" content="前言 最近下載了神魔之塔這款遊戲&hellip;orz。
+我發現在 Facebook 打廣告還算有用，真的就是因為他出現贊助在我牆上太多次，才決定下載試試看，而且當我意識到的時候，我已經花了整整一天在轉珠上面了，也難怪神魔之塔版會佔據 PTT 熱門看板前幾名，不是沒有道理 XD &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://tech.shaolin.tw/posts/2013/11/05/towerofsaviors-automatically-battle-without-phone/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="http://feeds.feedburner.com/tech_shaolin" rel="alternate" title="Shaolin.TW" type="application/atom+xml">
+  <!-- Facebook Open Graph
+     Facebook Debugger: https://developers.facebook.com/tools/debug -->
+<meta property="og:title" content="神魔之塔脫機自動戰鬥" /><meta itemprop="name" content="神魔之塔脫機自動戰鬥" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://tech.shaolin.tw/posts/2013/11/05/towerofsaviors-automatically-battle-without-phone/" />
+<meta property="og:description" content="前言 最近下載了神魔之塔這款遊戲&hellip;orz。
+我發現在 Facebook 打廣告還算有用，真的就是因為他出現贊助在我牆上太多次，才決定下載試試看，而且當我意識到的時候，我已經花了整整一天在轉珠上面了，也難怪神魔之塔版會佔據 PTT 熱門看板前幾名，不是沒有道理 XD &hellip;" />
+
+<meta property="og:site_name" content="http://tech.shaolin.tw" />
+<meta property="article:published_time" content="2013-11-05 05:20:00 +0800" />
+
+<meta property="article:section" content="" />
+<meta itemprop="description" content="前言 最近下載了神魔之塔這款遊戲&hellip;orz。
+我發現在 Facebook 打廣告還算有用，真的就是因為他出現贊助在我牆上太多次，才決定下載試試看，而且當我意識到的時候，我已經花了整整一天在轉珠上面了，也難怪神魔之塔版會佔據 PTT 熱門看板前幾名，不是沒有道理 XD &hellip;" />
+
+<!-- Combine multiple fonts into one request -->
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic|Patua+One|Yanone+Kaffeesatz" rel="stylesheet" type="text/css">
+<!-- jQuery -->
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+
+  
+  <script type="text/javascript">
+
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-323837-6', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+
+
+</head>
+
+<body    class="collapse-sidebar sidebar-footer" >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Shaolin.TW</a></h1>
+  
+    <h2>shaolin's 20% time</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="http://feeds.feedburner.com/tech_shaolin" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="tech.shaolin.tw">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/"><i class="icon-home"></i>Home</a></li>
+  <li><a href="/archives"><i class="icon-book-alt"></i>Archives</a><span class="divider"></span></li>
+  <li><a href="/about"><i class="icon-user"></i>About</a><span class="divider"></span></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">神魔之塔脫機自動戰鬥</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-11-05T05:20:00+08:00" pubdate data-updated="true">November 5, 2013 05:20</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><h1>前言</h1>
+
+<p>最近下載了神魔之塔這款遊戲&hellip;orz。
+我發現在 Facebook 打廣告還算有用，真的就是因為他出現贊助在我牆上太多次，才決定下載試試看，而且當我意識到的時候，我已經花了整整一天在轉珠上面了，也難怪神魔之塔版會佔據 PTT 熱門看板前幾名，不是沒有道理 XD
+我喜歡從應用層的協定來了解一款網路遊戲，了解程式和程式間的溝通，總能更了解開發者的思維。身為一個研究僧，動手來看看神魔之塔的 API 吧！</p>
+
+<h1>發現</h1>
+
+<p>一開始錄封包還滿訝異的，因為它是走 HTTP，沒有 SSL/TLS 的狀況下很容易被偷走遊戲資訊，而且其 session 好像大喇喇的出現在 GET 參數裡面，如下面一個取得獎賞清單的請求：</p>
+
+<blockquote><p><a href="http://zh.towerofsaviors.com/api/user/reward/list?uid=400000000&amp;session=21232f297a57a5a743894a0e4a801fc3&amp;language=zh_TW&amp;platform=android&amp;version=3.27&amp;timestamp=1234567890&amp;timezone=8&amp;nData=8d777f385d3dfec8815d20f7496026dc&amp;hash=5f4dcc3b5aa765d61d8327deb882cf99">http://zh.towerofsaviors.com/api/user/reward/list?uid=400000000&amp;session=21232f297a57a5a743894a0e4a801fc3&amp;language=zh_TW&amp;platform=android&amp;version=3.27&amp;timestamp=1234567890&amp;timezone=8&amp;nData=8d777f385d3dfec8815d20f7496026dc&amp;hash=5f4dcc3b5aa765d61d8327deb882cf99</a></p></blockquote>
+
+<p>不過其實神魔之塔這款遊戲帳號被偷走也不太會有影響，畢竟虛擬的卡片也不能流通。影響比較大能想到的就是把其他玩家六星神卡當肥料餵史萊姆。（但有人會這麼無聊嗎？）</p>
+
+<p>神魔之塔的 API 還滿清楚簡單的，結構一目了然。唯一讓我有興趣的，是 hash 那個參數，因為如果對請求做了修改，伺服器就會回傳 <code>Invalid Hash Code.</code>，看起來這串 hash 值是對所有參數做某種演算法的結果。</p>
+
+<p>所以我就翻翻翻，翻到了產生 hash 的演算法：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>hash = Checksum.GetHash("/api/" + path + URLBuilder.BuildQuery(dictionary, true), string.Empty);</span></code></pre></td></tr></table></div></figure>
+
+
+<p>其中 GetHash 是下面這個樣子。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>public static string GetHash(string input, string salt = "")
+</span><span class='line'>{
+</span><span class='line'>     string str = "YmZhYTRkNzIwM2VkODhhZTZiZTg4MDU2NWFlYjkxMDU=" + salt;
+</span><span class='line'>     string str2 = Encryption.MD5(input).Substring(4, 4);
+</span><span class='line'>     return Encryption.MD5(str2 + str);
+</span><span class='line'>} </span></code></pre></td></tr></table></div></figure>
+
+
+<p>在有了這串 hash 演算法的前提下，可以做的事情好像就很多了，例如說 <strong>自動戰鬥</strong>。</p>
+
+<h1>實作</h1>
+
+<p>為了要證實這樣的想法，我寫了一支程式去測試。模擬戰鬥中的參數，然後送出戰鬥勝利的請求。實作影片如下：</p>
+
+<center><iframe width="640" height="480" src="//www.youtube.com/embed/tW599f_G9yo" frameborder="0" allowfullscreen></iframe></center>
+
+
+<p>這只是一支 POC (Proof of Concepts) 程式，雖然看起來很強大，但就寫到這邊為止了。要不是前兩天陪朋友們去參加比賽，我順便去練練程式，不然這應該永遠只是一個 concept 而已。
+利用同樣的前提，以下還有其他猜想，但我已經不會去驗證了：
+- 感覺夠做到自動化首抽，應該可以不受官方開新帳號的限制
+- 例如在戰鬥中回合次數改成 9999，不知道會不會把 skill 等級提昇</p>
+
+<h1>結論</h1>
+
+<p>本篇從神魔之塔 API 的角度出發，嘗試了解參數的意義，並實作程式自動化戰鬥。
+從這件事情也學習到，在開發者的角度，有必要在重要的加密程序上做一些混淆，可以增加有心人解析的困難度。</p>
+
+<p>我能夠預料到這篇文章寫出來有些人可能會有問題想問，但這只是我突發奇想做的事情，也不會繼續研究下去，所以請原諒我不會在這篇文章下回應留言。</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">shaolin</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-11-05T05:20:00+08:00" pubdate data-updated="true">November 5, 2013 05:20</time>
+      
+
+
+    </p>
+    
+      <div class="social-share" style="line-height: 10px; margin: 20px 0;">
+  <div style="float: right;">
+    <div class="fb-like" data-href="http://tech.shaolin.tw/posts/2013/11/05/towerofsaviors-automatically-battle-without-phone/" data-layout="button_count" data-action="like" data-show-faces="false" data-share="false"></div>
+  </div>
+  <a href="https://twitter.com/share?" class="twitter-share-button">Tweet</a>
+  <div class="g-plusone" data-size="medium"></div>
+  <script type="text/javascript">
+    (function() {
+      var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+      po.src = 'https://apis.google.com/js/platform.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+    })();
+  </script>
+  <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/posts/2013/09/21/facebook-edit-post-api/" title="Previous Post: Facebook 修改文章 API">&laquo; Facebook 修改文章 API</a>
+      
+      
+        <a class="basic-alignment right" href="/posts/2013/12/17/security-issue-of-rails-cookiestore-mechanism/" title="Next Post: Rails CookieStore 的安全議題">Rails CookieStore 的安全議題 &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<p>
+  Copyright &copy; 2016 - shaolin<span class="theme-version">Dropbot 0.8</span>
+  <section class="contruction-wrap">
+    <div class="contruction"></div>
+  </section>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tech-shaolin';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://tech.shaolin.tw/posts/2013/11/05/towerofsaviors-automatically-battle-without-phone/';
+        var disqus_url = 'http://tech.shaolin.tw/posts/2013/11/05/towerofsaviors-automatically-battle-without-phone/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+  <script type="text/javascript">
+
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-323837-6', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+
+
+
+
+</body>
+</html>

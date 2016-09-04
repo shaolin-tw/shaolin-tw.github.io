@@ -1,0 +1,423 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Rails CookieStore 的安全議題 - Shaolin.TW</title>
+  <meta name="author" content="shaolin">
+
+  
+  <meta name="description" content="前言 上週在 exp.tw 上面看到 WhiteHat Security 公布本年度最新、最有創意的 web 攻擊手法候選名單。曾經我也寫過一陣子 Rails ，所以在清單中看到有一條關於 Ruby on Rails 的議題稍感興趣，這個風險叫做「Ruby on Rails Session &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://tech.shaolin.tw/posts/2013/12/17/security-issue-of-rails-cookiestore-mechanism/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="http://feeds.feedburner.com/tech_shaolin" rel="alternate" title="Shaolin.TW" type="application/atom+xml">
+  <!-- Facebook Open Graph
+     Facebook Debugger: https://developers.facebook.com/tools/debug -->
+<meta property="og:title" content="Rails CookieStore 的安全議題" /><meta itemprop="name" content="Rails CookieStore 的安全議題" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://tech.shaolin.tw/posts/2013/12/17/security-issue-of-rails-cookiestore-mechanism/" />
+<meta property="og:description" content="前言 上週在 exp.tw 上面看到 WhiteHat Security 公布本年度最新、最有創意的 web 攻擊手法候選名單。曾經我也寫過一陣子 Rails ，所以在清單中看到有一條關於 Ruby on Rails 的議題稍感興趣，這個風險叫做「Ruby on Rails Session &hellip;" />
+
+<meta property="og:site_name" content="http://tech.shaolin.tw" />
+<meta property="article:published_time" content="2013-12-17 01:25:00 +0800" />
+
+<meta property="article:section" content="" />
+<meta itemprop="description" content="前言 上週在 exp.tw 上面看到 WhiteHat Security 公布本年度最新、最有創意的 web 攻擊手法候選名單。曾經我也寫過一陣子 Rails ，所以在清單中看到有一條關於 Ruby on Rails 的議題稍感興趣，這個風險叫做「Ruby on Rails Session &hellip;" />
+
+<!-- Combine multiple fonts into one request -->
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic|Patua+One|Yanone+Kaffeesatz" rel="stylesheet" type="text/css">
+<!-- jQuery -->
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+
+  
+  <script type="text/javascript">
+
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-323837-6', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+
+
+</head>
+
+<body    class="collapse-sidebar sidebar-footer" >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Shaolin.TW</a></h1>
+  
+    <h2>shaolin's 20% time</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="http://feeds.feedburner.com/tech_shaolin" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="sitesearch" value="tech.shaolin.tw">
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/"><i class="icon-home"></i>Home</a></li>
+  <li><a href="/archives"><i class="icon-book-alt"></i>Archives</a><span class="divider"></span></li>
+  <li><a href="/about"><i class="icon-user"></i>About</a><span class="divider"></span></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Rails CookieStore 的安全議題</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-12-17T01:25:00+08:00" pubdate data-updated="true">December 17, 2013 01:25</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><h1>前言</h1>
+
+<p>上週在 <a href="http://exp.tw/writing/show/52">exp.tw</a> 上面看到 <a href="https://blog.whitehatsec.com/">WhiteHat Security</a> 公布本年度最新、最有創意的 web 攻擊手法<a href="https://blog.whitehatsec.com/top-10-web-hacking-techniques-2013/">候選名單</a>。曾經我也寫過一陣子 Rails ，所以在清單中看到有一條關於 Ruby on Rails 的議題稍感興趣，這個風險叫做「Ruby on Rails Session Termination Design Flaw」，投稿的文章<a href="http://maverickblogging.com/logout-is-broken-by-default-ruby-on-rails-web-applications/">在此</a>。</p>
+
+<p>此風險是關於 Rails 的 session 儲存機制。Rails 預設的 session 值是存在 cookie 裡面，即 ActionDispatch::Session::CookieStore，該投稿文章提到 session 如果使用預設的 CookieStore 機制，產生的 session cookie 永不失效，即使登出後產生了新的 session cookie，舊有的 session cookie 仍然可以拿來作為認證用途。直接拿本站 logdown 平台當範例說明，如下面影片：</p>
+
+<center><iframe width="640" height="480" src="//www.youtube.com/embed/DaNiRegLek8?rel=0" frameborder="0" allowfullscreen></iframe></center>
+
+
+<p>這有什麼樣的風險呢？這個風險在於，只要你有一次在不安全的網路環境中被偷走 session cookie，即使你登出了，別人還是可以利用那組 session cookie 盜用你的身分。就好像你家裡鑰匙被偷走了，不管如何換門鎖，別人還是可以自由進出你家。</p>
+
+<p>台灣有一半以上 RoR 網站使用 CookieStore 做為 session 存儲方式（全世界也是啦！），所以這個問題值得提一下，本篇就來探討為什麼會有這樣的狀況，以及如何解決這樣的問題。</p>
+
+<h1>原理</h1>
+
+<h2>CookieStore 的儲存機制</h2>
+
+<p>在開始解說原理之前，我們先要了解 CookieStore 機制到底在 session cookie 裡面存了什麼東西？我們先建立一個乾淨的 rails 環境，然後我們在程式裡面加上 session 值， key 叫做 secret 好了。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">session</span><span class="o">[</span><span class="ss">:secret</span><span class="o">]</span> <span class="o">=</span> <span class="s1">&#39;very secret&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>瀏覽網頁後抓到的 session cookie 可能像這樣：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">BAh7B0kiD3Nlc3Npb25faWQGOgZFVEkiJWNiMDhiMDIyNmM5MzFkNTY1NDcw</span><span class="p">\</span><span class="n">nMWY5ZmJmOTNkZDM0BjsAVEkiC3NlY3JldAY7AEZJIhB2ZXJ5IHNlY3JldAY7</span><span class="p">\</span><span class="n">nAFQ</span><span class="o">%</span><span class="mi">3</span><span class="n">D</span><span class="o">--</span><span class="n">bfdd96e1d5157520226a160c571ab75a7342d8ee</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>這個 cookie 分成兩部分，分別用 &ldquo;&ndash;&rdquo; 符號區隔。前半部分是用 base64 編碼過後的 ruby 序列化物件，後半部是 HMAC，用來驗證前半部是不是合法的。試著解碼前半部份如下：</p>
+
+<p><img src="http://user-image.logdown.io/user/264/blog/264/post/166819/JWx6D9cQmOOONPzarkwQ_decode_cookie.png" alt="decode_cookie.png" /></p>
+
+<p>可以看到解出來有一個 session_id ，另一個就是我們之前在程式裡面加的 secret。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span><span class="s2">&quot;session_id&quot;</span><span class="o">=&gt;</span><span class="s2">&quot;cb08b0226c931d5654701f9fbf93dd34&quot;</span><span class="p">,</span> <span class="s2">&quot;secret&quot;</span><span class="o">=&gt;</span><span class="s2">&quot;very secret&quot;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>由此可以看到，CookieStore 的儲存機制會把所有的 session 值放到 client 端的 cookie 裡面，所以 <a href="http://guides.rubyonrails.org/security.html#session-storage">rails 官方安全說明文件</a>也不斷提醒，如果使用 CookieStore 做為儲存 session 的方式，絕對不要存私密的東西，因為它僅用 base64 編碼而非加密。不過，即使 session 的內容能被解碼看似很不安全，但其實這個 session 值並不能輕易的被改變，因為有後半部的 HMAC 驗證，它會將前半部的值跟 server 端的 secret_token 做 SHA1 運算，如果前半部改變，後半部的 SHA1 值也不會對，使驗證失敗。</p>
+
+<p>這裡又牽扯到另外一個問題，去年大概十二月出了一篇文章「 <a href="http://phenoelit.org/blog/archives/2012/12/21/let_me_github_that_for_you/index.html">Let Me Github That For You</a>」，提到目前有許多公開的 rails 專案把程式碼放在 github 上，其中包含了剛剛說的 secret_token，也就是說如果有了這個 secret_token，我們便可以自行偽造 session 值。</p>
+
+<p>目前 Rails 4 之後已經預設會對 session cookie 加密，要看到 session 值已經沒有這麼容易了，但如果 secret_token.rb 還是放在公開的空間例如: Github，還是可以解開的。此外，本篇主要講的安全議題並不會受 Rails 4 這個機制影響。</p>
+
+<p>對了，如果你看到 rails 網站的 session cookie 裡面含有 &ldquo;&ndash;&rdquo; 這個符號，可以用下面方式來解碼：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Marshal</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="no">Base64</span><span class="o">.</span><span class="n">decode64</span><span class="p">(</span><span class="n">session_cookie</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;--&quot;</span><span class="p">)</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span><span class="p">))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>問題出在使用者的認證方式</h2>
+
+<p>說到 Rails 的會員和認證，通常會有比較多人使用 <a href="https://github.com/plataformatec/devise">Devise</a> 這個 gem 來幫忙處理，我們就拿 Devise 做一個測試站台來當做範例，分別來看看已登入的 cookie 和登出再登入的 cookie 有什麼不同。</p>
+
+<p>以下是第一次登入時的 session cookie 值（已解碼）：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span> <span class="s2">&quot;session_id&quot;</span>           <span class="o">=&gt;</span> <span class="s2">&quot;088e4032f9579e118438dac62106bc1f&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;warden.user.user.key&quot;</span> <span class="o">=&gt;</span> <span class="o">[[</span><span class="mi">1</span><span class="o">]</span><span class="p">,</span> <span class="s2">&quot;$2a$10$QrArbqRt.h7lW.tk6iKZie&quot;</span><span class="o">]</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;_csrf_token&quot;</span>          <span class="o">=&gt;</span> <span class="s2">&quot;mau7U+XrCOGTUtDSbx9RIMjFJLdxjK0cZ4DZGmfgozQ=&quot;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>以下是登出當下的 session cookie 值（已解碼）：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span> <span class="s2">&quot;flash&quot;</span>      <span class="o">=&gt;</span> <span class="c1">#&lt;ActionDispatch::Flash::FlashHash:0x007fe2ec66f6d0 @used=#&lt;Set: {}&gt;, </span>
+</span><span class='line'>                   <span class="vi">@closed</span><span class="o">=</span><span class="kp">false</span><span class="p">,</span> <span class="vi">@flashes</span><span class="o">=</span><span class="p">{</span><span class="ss">:notice</span><span class="o">=&gt;</span><span class="s2">&quot;Signed out successfully.&quot;</span><span class="p">},</span>
+</span><span class='line'>                   <span class="vi">@now</span><span class="o">=</span><span class="kp">nil</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;session_id&quot;</span> <span class="o">=&gt;</span> <span class="s2">&quot;503c5adb9fbb06a3bc9a9af874d8377e&quot;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>以下是登出後再重新登入的 session cookie 值（已解碼）：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span> <span class="s2">&quot;session_id&quot;</span>           <span class="o">=&gt;</span> <span class="s2">&quot;503c5adb9fbb06a3bc9a9af874d8377e&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;warden.user.user.key&quot;</span> <span class="o">=&gt;</span> <span class="o">[[</span><span class="mi">1</span><span class="o">]</span><span class="p">,</span> <span class="s2">&quot;$2a$10$QrArbqRt.h7lW.tk6iKZie&quot;</span><span class="o">]</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;_csrf_token&quot;</span>          <span class="o">=&gt;</span> <span class="s2">&quot;r70bOzxJlMB/pN073OUB1Uml7ZEp0gjIHo4TQbZVN8Q=&quot;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>從上面三個可以看到兩件事情：</p>
+
+<ol>
+<li>Devise 實作登出時，是把整個 session 砍掉，重新給了一個新的 session （session_id 不一樣）</li>
+<li>用來認證的 warden.user.user.key 值在不同的兩個 session 內都一樣</li>
+</ol>
+
+
+<p>用來識別身分的值（此為 warden.user.user.key）在每次 session 中都一樣，所以不管 session 再怎麼刪去重建，因為識別的值沒有失效，永遠都可以合法通過身分驗證，這就是問題的核心點。與其說這是 rails 的問題，更貼切的說法是開發者在實作身分認證時沒有考慮到那些識別值需要有失效的時候。</p>
+
+<p>其實 <code>@current_user = User.find(session[:uid])</code> 在從前是再一般不過的寫法，因為通常 session 值都是存在 server 端，client 端只存放 session_id 用來當 server 端的 index，當 session 被清空意即所有的 session 值也一併失效。但在 CookieStore 機制下所有值都存在 client 端上，server 端很難控制這些值是不是已經永久失效，而原本的 session_id 只是中看不中用，完全沒有功用。你可能會好奇既然資料都存在 client 端，為什麼 session cookie 裡面還會有 session_id，這在<a href="http://guides.rubyonrails.org/action_controller_overview.html#session">官方文件</a>中有描述：</p>
+
+<blockquote><p>For most stores, this ID is used to look up the session data on the server, e.g. in a database table. There is one exception, and that is the default and recommended session store - the CookieStore - which stores all session data in the cookie itself (the ID is still available to you if you need it)</p></blockquote>
+
+<p>翻譯：session_id 就是擺在那邊好看的，你如果要用可以拿去用唷！揪咪 ^.＜</p>
+
+<h1>解法</h1>
+
+<p>關於解決方案，共有兩個面向，一個是使用者如何自救，讓漂流在外面的眾多 session cookie 能夠失效，免得被有心人盜用；另一個是開發者如何從 server 端來修正 CookieStore 帶來的困擾。</p>
+
+<h2>如何讓之前所有的 session cookie 失效</h2>
+
+<p>在<a href="http://maverickblogging.com/logout-is-broken-by-default-ruby-on-rails-web-applications/">原文</a>中有提到讓 session cookie 失效的方法有二，一個是使用者改密碼，另一個是變更 server 端的 secret_token。前者是因為改密碼後 <code>"warden.user.user.key" =&gt; [[1], "$2a$10$QrArbqRt.h7lW.tk6iKZie"]</code> 值會改變（以 Devise 為例），造成用原本的值認證失敗。後者是改變 secret_token 後，原本 cookie 後半部 HMAC 的部份就會因為 key 變了而驗證失敗，造成整個 cookie 失效。</p>
+
+<p>但兩種方法都不是很方便，對使用者而言，更不可能改到 secret_token。而且，改密碼這招並不一定對每個站都有效，例如我正在使用的 logdown（又中槍XD）就不會因為改變密碼而讓 session cookie 失效。</p>
+
+<p>logdown 的 session cookie 大概是這個樣子（已解碼）：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span> <span class="s2">&quot;session_id&quot;</span>           <span class="o">=&gt;</span> <span class="s2">&quot;234a5fe379e6fd7285c119a912bf8875&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;_csrf_token&quot;</span>          <span class="o">=&gt;</span> <span class="s2">&quot;kBUbkc+uwJf2jAf2BNxen//qDnbanIWt1p66ChTZj74=&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;user_id&quot;</span>              <span class="o">=&gt;</span> <span class="c1">#&lt;OmniAuth::AuthHash credentials=#&lt;OmniAuth::AuthHash expires=true expires_at=1387100895 refresh_token=&quot;3dfdef72eb7c1f40b1b6a5f01e0a5711&quot; token=&quot;a9545433a04a0af603839bd5924a8da5&quot;&gt;</span>
+</span><span class='line'>                              <span class="n">extra</span><span class="o">=</span><span class="c1">#&lt;OmniAuth::AuthHash name=&quot;cookie_store&quot;&gt; </span>
+</span><span class='line'>                              <span class="n">info</span><span class="o">=</span><span class="c1">#&lt;OmniAuth::AuthHash::InfoHash email=nil&gt; </span>
+</span><span class='line'>                              <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;logdownid&quot;</span> <span class="n">uid</span><span class="o">=</span><span class="s2">&quot;5566&quot;</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;warden.user.user.key&quot;</span> <span class="o">=&gt;</span> <span class="o">[[</span><span class="mi">5566</span><span class="o">]</span><span class="p">,</span> <span class="s2">&quot;$2a$13$W6UrdvOhr3YTyYt4S1kbSe&quot;</span><span class="o">]</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>實驗過後，更改密碼確實會讓 warden.user.user.key 的值有所改變，但 logdown 似乎沒有使用 Devise 的 current_user helper，猜測是直接使用 <code>@current_user = User.find(session[:user_id].uid)</code> 之類的方式抓使用者。可惡害我之前看到 warden.user.user.key 改變還可以正常登入時見獵心喜，以為是 Devise 驗證那塊出了什麼問題 QQ</p>
+
+<p>小結就是使用者要自行讓 session cookie 失效非常的麻煩，甚至有可能做不到。唯一的方法可能就是打電話給開發者拜託他們關注一下這個問題了吧 XD</p>
+
+<h2>server 端的防禦方針</h2>
+
+<p>從提供安全服務的角度來看，我們已經不能再給一份真摯的 cookie 一個一萬年的期限，否則駭客將會踏著七色的雲彩而來。給 cookie 一個有效期限，或是直接讓 cookie 生於 server、死於 server，才是解決這個問題的大方向。以下整理三點方案提供參考：</p>
+
+<ol>
+<li><p>不使用預設的 CookieStore 做為 session 儲存方式，在 <a href="http://guides.rubyonrails.org/action_controller_overview.html#session">ActionDispatch::Session</a> 裡面有其他四種儲存方式可以選擇。缺點就是需要額外的硬體支援，執行起來也沒有 CookieStore 來的快，看服務取向來 trade-off 囉！</p></li>
+<li><p>在 session cookie 裡面加入一個 timeout 值，每次進入主要程式前都先檢查傳進來的 session cookie 是否過期，如果過期該 cookie 就無效，可以參考<a href="https://www.coffeepowered.net/2013/09/26/rails-session-cookies/">這篇</a>上面的作法。缺點是這個方法靈活度不大，可能會造成使用者三不五時需要重新登入，或 cookie 在過期前仍然有被盜用的風險。</p></li>
+<li><p>既然 rails 在 session cookie 提供一個 session_id 值，我們便可以在 server 端建立一個合法 session_id 清單（存於記憶體），使用者登入時把該使用者的 session_id 存入合法清單中；登出時把該使用者的 session_id 從合法清單中移除。在進入主要程式前都先檢查使用者的 session_id 是否存在在合法清單中，如果不合法則不給予使用者權限。實作上可參考<a href="https://www.coffeepowered.net/2013/09/26/rails-session-cookies/">這篇</a>下面的部份，但還要注意這個合法清單可能會有不斷膨脹的問題。</p></li>
+</ol>
+
+
+<p>當然，減少被盜的風險（例如使用 https）也是另外一個角度的解決方案。『永遠都偷不走的 session』VS 『就算被偷也會失效的 session』XD 不過想想，無論做再多防禦，還是無法保證 session cookie 不會被偷走（直接到受害者電腦去拿防不了了吧），所以多少還是要思考一下如何在受害後降低傷害的方式。</p>
+
+<h1>結論</h1>
+
+<p>因為 rails 預設的 CookieStore session 儲存機制，以及慣用的 session 認證方式，導致任何曾經認證過的 session cookie 永遠不會失效。這個現象會讓所有曾經在不安全網路下使用部分 rails 服務的使用者，有永久被盜用的風險。</p>
+
+<p>本文透過小實驗說明這件事情發生的原因，並稍微提及其他 CookieStore 機制產生的問題。最後整理了三點方案，建議開發者要加入能夠控制 session cookie 存亡的機制，以避免這個風險。</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">shaolin</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-12-17T01:25:00+08:00" pubdate data-updated="true">December 17, 2013 01:25</time>
+      
+
+
+    </p>
+    
+      <div class="social-share" style="line-height: 10px; margin: 20px 0;">
+  <div style="float: right;">
+    <div class="fb-like" data-href="http://tech.shaolin.tw/posts/2013/12/17/security-issue-of-rails-cookiestore-mechanism/" data-layout="button_count" data-action="like" data-show-faces="false" data-share="false"></div>
+  </div>
+  <a href="https://twitter.com/share?" class="twitter-share-button">Tweet</a>
+  <div class="g-plusone" data-size="medium"></div>
+  <script type="text/javascript">
+    (function() {
+      var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+      po.src = 'https://apis.google.com/js/platform.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+    })();
+  </script>
+  <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/posts/2013/11/05/towerofsaviors-automatically-battle-without-phone/" title="Previous Post: 神魔之塔脫機自動戰鬥">&laquo; 神魔之塔脫機自動戰鬥</a>
+      
+      
+        <a class="basic-alignment right" href="/posts/2014/04/17/cve-2014-0166-wordpress-forged-cookie-vulnerabilities/" title="Next Post: CVE-2014-0166 Wordpress 偽造 Cookie 弱點">CVE-2014-0166 Wordpress 偽造 Cookie 弱點 &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+<p>
+  Copyright &copy; 2016 - shaolin<span class="theme-version">Dropbot 0.8</span>
+  <section class="contruction-wrap">
+    <div class="contruction"></div>
+  </section>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'tech-shaolin';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://tech.shaolin.tw/posts/2013/12/17/security-issue-of-rails-cookiestore-mechanism/';
+        var disqus_url = 'http://tech.shaolin.tw/posts/2013/12/17/security-issue-of-rails-cookiestore-mechanism/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+  <script type="text/javascript">
+
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-323837-6', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+
+
+
+
+</body>
+</html>

