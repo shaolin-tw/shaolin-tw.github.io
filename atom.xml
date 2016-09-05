@@ -4,7 +4,7 @@
   <title><![CDATA[Shaolin.TW]]></title>
   <link href="http://tech.shaolin.tw/atom.xml" rel="self"/>
   <link href="http://tech.shaolin.tw/"/>
-  <updated>2016-09-04T22:00:46+08:00</updated>
+  <updated>2016-09-05T11:50:32+08:00</updated>
   <id>http://tech.shaolin.tw/</id>
   <author>
     <name><![CDATA[shaolin]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[CVE-2014-0166 Wordpress 偽造 Cookie 弱點]]></title>
     <link href="http://tech.shaolin.tw/posts/2014/04/17/cve-2014-0166-wordpress-forged-cookie-vulnerabilities/"/>
-    <updated>2014-04-17T02:40:00+08:00</updated>
+    <updated>2014-04-17T10:40:00+08:00</updated>
     <id>http://tech.shaolin.tw/posts/2014/04/17/cve-2014-0166-wordpress-forged-cookie-vulnerabilities</id>
     <content type="html"><![CDATA[<p>本篇同步刊載於 <a href="http://devco.re/blog/2014/04/16/cve-2014-0166-wordpress-forged-cookie-vulnerabilities/">DEVCORE 官方部落格</a></p>
 
@@ -164,7 +164,7 @@ hmac 值用來驗證 cookie 是否合法。
   <entry>
     <title type="html"><![CDATA[Rails CookieStore 的安全議題]]></title>
     <link href="http://tech.shaolin.tw/posts/2013/12/17/security-issue-of-rails-cookiestore-mechanism/"/>
-    <updated>2013-12-17T01:25:00+08:00</updated>
+    <updated>2013-12-17T09:25:00+08:00</updated>
     <id>http://tech.shaolin.tw/posts/2013/12/17/security-issue-of-rails-cookiestore-mechanism</id>
     <content type="html"><![CDATA[<h1>前言</h1>
 
@@ -333,7 +333,7 @@ hmac 值用來驗證 cookie 是否合法。
   <entry>
     <title type="html"><![CDATA[神魔之塔脫機自動戰鬥]]></title>
     <link href="http://tech.shaolin.tw/posts/2013/11/05/towerofsaviors-automatically-battle-without-phone/"/>
-    <updated>2013-11-05T05:20:00+08:00</updated>
+    <updated>2013-11-05T13:20:00+08:00</updated>
     <id>http://tech.shaolin.tw/posts/2013/11/05/towerofsaviors-automatically-battle-without-phone</id>
     <content type="html"><![CDATA[<h1>前言</h1>
 
@@ -399,7 +399,7 @@ hmac 值用來驗證 cookie 是否合法。
   <entry>
     <title type="html"><![CDATA[Facebook 修改文章 API]]></title>
     <link href="http://tech.shaolin.tw/posts/2013/09/21/facebook-edit-post-api/"/>
-    <updated>2013-09-21T08:48:00+08:00</updated>
+    <updated>2013-09-21T16:48:00+08:00</updated>
     <id>http://tech.shaolin.tw/posts/2013/09/21/facebook-edit-post-api</id>
     <content type="html"><![CDATA[<h1>前言</h1>
 
@@ -474,9 +474,9 @@ hmac 值用來驗證 cookie 是否合法。
   
   <entry>
     <title type="html"><![CDATA[在 PTT 插 javascript]]></title>
-    <link href="http://tech.shaolin.tw/posts/2013/08/27/insert-javascript-into-web-ptt/"/>
-    <updated>2013-08-27T17:58:00+08:00</updated>
-    <id>http://tech.shaolin.tw/posts/2013/08/27/insert-javascript-into-web-ptt</id>
+    <link href="http://tech.shaolin.tw/posts/2013/08/28/insert-javascript-into-web-ptt/"/>
+    <updated>2013-08-28T01:58:00+08:00</updated>
+    <id>http://tech.shaolin.tw/posts/2013/08/28/insert-javascript-into-web-ptt</id>
     <content type="html"><![CDATA[<p><strong>註：本文發表時，PTT 官方已經修正這個問題</strong></p>
 
 <h1>前言</h1>
@@ -538,7 +538,7 @@ hmac 值用來驗證 cookie 是否合法。
   <entry>
     <title type="html"><![CDATA[Wi-Fi positioning system 欺騙 (2)]]></title>
     <link href="http://tech.shaolin.tw/posts/2013/08/05/wi-fi-positioning-system-spoofing-2/"/>
-    <updated>2013-08-05T11:00:00+08:00</updated>
+    <updated>2013-08-05T19:00:00+08:00</updated>
     <id>http://tech.shaolin.tw/posts/2013/08/05/wi-fi-positioning-system-spoofing-2</id>
     <content type="html"><![CDATA[<h1>前言</h1>
 
@@ -720,7 +720,7 @@ hmac 值用來驗證 cookie 是否合法。
   <entry>
     <title type="html"><![CDATA[Wi-Fi positioning system 欺騙 (1)]]></title>
     <link href="http://tech.shaolin.tw/posts/2013/07/13/wi-fi-positioning-system-spoofing-1/"/>
-    <updated>2013-07-13T12:26:00+08:00</updated>
+    <updated>2013-07-13T20:26:00+08:00</updated>
     <id>http://tech.shaolin.tw/posts/2013/07/13/wi-fi-positioning-system-spoofing-1</id>
     <content type="html"><![CDATA[<h1>背景</h1>
 
