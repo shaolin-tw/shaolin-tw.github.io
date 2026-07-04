@@ -1,4 +1,4 @@
 User-agent: *
 Disallow: 
 
-Sitemap: http://tech.shaolin.tw/sitemap.xml 
+Sitemap: https://tech.shaolin.tw/sitemap.xml 
